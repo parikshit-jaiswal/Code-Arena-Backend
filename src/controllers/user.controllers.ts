@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
-import User from "../models/user.model";
-import { ApiError } from "../utils/ApiError";
-import { ApiResponse } from "../utils/ApiResponse";
-import { asyncHandler } from "../utils/asyncHandler";
-import { IUser } from "../types/user.types";
+import User from "../models/user.model.js";
+import { ApiError } from "../utils/ApiError.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { IUser } from "../types/user.types.js";
 
 const generateAccessAndRefreshTokens = async (userId: string) => {
     try {

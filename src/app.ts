@@ -1,7 +1,7 @@
 import express, { urlencoded } from 'express'
 import cookieParser from 'cookie-parser';
 import cors from "cors";
-import testRouter from './routes/test.routes'
+import testRouter from './routes/test.routes.js'
 import authRouter from './routes/user.routes.js'
 import codeRouter from './routes/code.routes.js'
 const app = express()
