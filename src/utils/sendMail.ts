@@ -4,7 +4,13 @@ dotenv.config();
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-export const sendOtpEmail = async (email: string, otp: string, html?: string) => {
+
+
+export const sendOtpEmail = async (email: string, otp: string) => {
+    if (!email || !otp) {
+        throw new Error("Email and OTP are required");
+    }
+
     const { data, error } = await resend.emails.send({
         from: "Code Arena <onboarding@resend.dev>",
         to: [email],
