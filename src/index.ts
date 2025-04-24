@@ -13,12 +13,12 @@ connectDB()
         app.listen(port, () => {
             console.log('------------------------------------------------');
             console.log(`🚀 Server started successfully on port: ${port}`);
-            // console.log(`🔗 URL: http://localhost:${port}`);
+            console.log(`🔗 URL: http://localhost:${port}`);
             console.log(`✅ Database connected successfully`);
             // console.log('------------------------------------------------');
             // console.log('📝 API Documentation available at /api/docs');
             console.log('⌛ Server is waiting for requests...');
-            // console.log('------------------------------------------------');
+            console.log('------------------------------------------------');
         });
     })
     .catch((err: unknown) => {

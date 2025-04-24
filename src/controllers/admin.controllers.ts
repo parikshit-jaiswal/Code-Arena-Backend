@@ -6,8 +6,10 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { IUser } from "../types/user.types.js";
 import { generateAccessAndRefreshTokens } from "../utils/tools.js";
 
-const registerUser = asyncHandler(async (req: Request, res: Response) => {
+
+const registerAdmin = asyncHandler(async (req: Request, res: Response) => {
     const { username, email, password }: { username?: string; email?: string; password?: string } = req.body;
+    const role: String = "admin";
 
     if (!username || !email || !password) {
         throw new ApiError(400, "All fields are required");
@@ -21,43 +23,44 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
         throw new ApiError(409, "User with email or username already exists");
     }
 
-    const user = await User.create({
+    const admin = await User.create({
         username,
         email,
         password,
+        role,
     });
 
-    const createdUser = await User.findById(user._id).select("-password -refreshToken -contestsCreated");
+    const createdAdmin = await User.findById(admin._id).select("-password -refreshToken -rating -contestsParticipated -solvedProblems");
 
-    if (!createdUser) {
-        throw new ApiError(500, "Something went wrong while registering the user");
+    if (!createdAdmin) {
+        throw new ApiError(500, "Something went wrong while registering the admin");
     }
 
-    res.status(201).json(new ApiResponse(201, createdUser, "User registered successfully"));
+    res.status(201).json(new ApiResponse(201, createdAdmin, "Admin registered successfully"));
 });
 
-const loginUser = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+const loginAdmin = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { email, password }: { email?: string; password?: string } = req.body;
 
     if (!email || !password) {
         throw new ApiError(400, "All fields are required");
     }
 
-    const user = await User.findOne({ email }) as IUser | null;
+    const admin = await User.findOne({ email }) as IUser | null;
 
-    if (!user) {
+    if (!admin) {
         throw new ApiError(404, "User doesn't exist");
     }
 
-    const isPasswordValid = await user.isPasswordCorrect(password);
+    const isPasswordValid = await admin.isPasswordCorrect(password);
 
     if (!isPasswordValid) {
-        throw new ApiError(401, "Incorrect user credentials");
+        throw new ApiError(401, "Incorrect admin credentials");
     }
 
-    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id!.toString());
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(admin._id!.toString());
 
-    const loggedInUser = await User.findById(user._id).select("-password -refreshToken -contestsCreated");
+    const loggedInAdmin = await User.findById(admin._id).select("-password -refreshToken -rating -contestsParticipated -solvedProblems");
 
     const cookieOptions = {
         httpOnly: true,
@@ -70,9 +73,9 @@ const loginUser = asyncHandler(async (req: Request, res: Response): Promise<void
         .json(
             new ApiResponse(
                 200,
-                { user: loggedInUser, accessToken, refreshToken },
-                "User logged in successfully"
+                { user: loggedInAdmin, accessToken, refreshToken },
+                "Admin logged in successfully"
             )
         );
 });
-export { registerUser, loginUser };
+export { registerAdmin, loginAdmin };
