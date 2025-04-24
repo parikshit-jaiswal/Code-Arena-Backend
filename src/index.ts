@@ -18,7 +18,7 @@ connectDB()
             // console.log('------------------------------------------------');
             // console.log('📝 API Documentation available at /api/docs');
             console.log('⌛ Server is waiting for requests...');
-            console.log('------------------------------------------------');
+            // console.log('------------------------------------------------');
         });
     })
     .catch((err: unknown) => {
