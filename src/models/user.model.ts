@@ -75,7 +75,7 @@ userSchema.methods.generateAccessToken = function (): string {
     if (!secret) {
         throw new Error("ACCESS_TOKEN_SECRET is not defined");
     }
-
+//merging with main
     return jwt.sign(
         {
             _id: this._id,
