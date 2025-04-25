@@ -33,6 +33,7 @@ export interface IUser extends mongoose.Document, IUserMethods {
     profile?: IProfile;
     rating: number;
     contestsParticipated: IContestParticipation[];
+    contestsCreated: IContestParticipation[];
     solvedProblems: ISolvedProblem[];
     refreshToken?: string;
     createdAt: Date;

@@ -1,79 +1,39 @@
 import { Request, Response } from "express";
-import User from "../models/user.model";
-import { ApiError } from "../utils/ApiError";
-import { ApiResponse } from "../utils/ApiResponse";
-import { asyncHandler } from "../utils/asyncHandler";
-import { IUser } from "../types/user.types";
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
-dotenv.config();
-
-interface DecodedToken {
-  _id: string;
-  iat: number;
-  exp: number;
-}
-
-const generateAccessAndRefreshTokens = async (userId: string) => {
-  try {
-    const user = await User.findById(userId);
-
-    if (!user) {
-      throw new ApiError(404, "User not found");
-    }
-
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
-    user.refreshToken = refreshToken;
-
-    await user.save({ validateBeforeSave: false });
-
-    return { accessToken, refreshToken };
-  } catch (error) {
-    console.error("Error generating tokens:", error);
-    throw new ApiError(
-      500,
-      "Something went wrong while generating access and refresh tokens"
-    );
-  }
-};
+import User from "../models/user.model.js";
+import { ApiError } from "../utils/ApiError.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { IUser } from "../types/user.types.js";
+import { generateAccessAndRefreshTokens } from "../utils/tools.js";
 
 const registerUser = asyncHandler(async (req: Request, res: Response) => {
-  const {
-    username,
-    email,
-    password,
-  }: { username?: string; email?: string; password?: string } = req.body;
+    const { username, email, password }: { username?: string; email?: string; password?: string } = req.body;
 
-  if (!username || !email || !password) {
-    throw new ApiError(400, "All fields are required");
-  }
+    if (!username || !email || !password) {
+        throw new ApiError(400, "All fields are required");
+    }
 
-  const existedUser = await User.findOne({
-    $or: [{ username }, { email }],
-  });
+    const existedUser = await User.findOne({
+        $or: [{ username }, { email }],
+    });
 
-  if (existedUser) {
-    throw new ApiError(409, "User with email or username already exists");
-  }
+    if (existedUser) {
+        throw new ApiError(409, "User with email or username already exists");
+    }
 
-  const user = await User.create({
-    username,
-    email,
-    password,
-  });
+    const user = await User.create({
+        username,
+        email,
+        password,
+    });
 
-  const createdUser = await User.findById(user._id).select(
-    "-password -refreshToken"
-  );
+    const createdUser = await User.findById(user._id).select("-password -refreshToken -contestsCreated");
 
-  if (!createdUser) {
-    throw new ApiError(500, "Something went wrong while registering the user");
-  }
+    if (!createdUser) {
+        throw new ApiError(500, "Something went wrong while registering the user");
+    }
 
-  res
-    .status(201)
-    .json(new ApiResponse(201, createdUser, "User registered successfully"));
+    res.status(201).json(new ApiResponse(201, createdUser, "User registered successfully"));
 });
 
 const loginUser = asyncHandler(
@@ -100,9 +60,7 @@ const loginUser = asyncHandler(
       user._id!.toString()
     );
 
-    const loggedInUser = await User.findById(user._id).select(
-      "-password -refreshToken"
-    );
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken -contestsCreated");
 
     const cookieOptions = {
       httpOnly: true,

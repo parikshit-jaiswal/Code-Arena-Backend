@@ -55,6 +55,11 @@ const userSchema = new Schema<IUser>(
                 solvedAt: Date,
             },
         ],
+        contestsCreated: [
+            {
+                contestId: { type: Schema.Types.ObjectId, ref: 'Contest' },
+            },
+        ],
     },
     { timestamps: true }
 );
@@ -64,6 +69,24 @@ userSchema.pre<IUser>('save', async function (next) {
     this.password = await bcrypt.hash(this.password, 10);
     next();
 });
+
+userSchema.methods.toJSON = function () {
+    const obj = this.toObject();
+    if (obj.role === 'admin') {
+        delete obj.rating;
+        delete obj.contestsParticipated;
+        delete obj.solvedProblems;
+    }
+    return obj;
+};
+
+userSchema.methods.toJSON = function () {
+    const obj = this.toObject();
+    if (obj.role === 'participant') {
+        delete obj.contestsCreated;
+    }
+    return obj;
+};
 
 userSchema.methods.isPasswordCorrect = async function (password: string): Promise<boolean> {
     return await bcrypt.compare(password, this.password);
