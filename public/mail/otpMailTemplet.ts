@@ -1,4 +1,13 @@
-export const html = (otp) = `<!DOCTYPE html>
+export const html = (otp: string) => {
+
+    const currentDate: string = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    // console.log(currentDate)
+
+    return (`<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -10,6 +19,47 @@ export const html = (otp) = `<!DOCTYPE html>
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <style>
+      @media only screen and (max-width: 600px) {
+        .main-container {
+          padding: 25px 15px 40px !important;
+        }
+        .content-card {
+          padding: 30px 20px !important;
+          margin-top: 30px !important;
+        }
+        .header-text {
+          font-size: 22px !important;
+        }
+        .date-text {
+          font-size: 14px !important;
+        }
+        .otp-container {
+          margin: 30px auto !important;
+          padding: 15px !important;
+        }
+        .otp-text {
+          font-size: 30px !important;
+          letter-spacing: 8px !important;
+        }
+        .help-text {
+          max-width: 100% !important;
+          padding: 0 10px !important;
+        }
+        .icon-container {
+          width: 70px !important;
+          height: 70px !important;
+        }
+        .social-icons {
+          margin: 15px 0 !important;
+        }
+        .social-icon {
+          width: 32px !important;
+          height: 32px !important;
+          margin: 0 5px !important;
+        }
+      }
+    </style>
   </head>
   <body
     style="
@@ -18,9 +68,12 @@ export const html = (otp) = `<!DOCTYPE html>
       background: #0D1439;
       font-size: 14px;
       color: #E6E7EB;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
     "
   >
     <div
+      class="main-container"
       style="
         max-width: 680px;
         margin: 0 auto;
@@ -31,19 +84,19 @@ export const html = (otp) = `<!DOCTYPE html>
       "
     >
       <header>
-        <table style="width: 100%;">
+        <table style="width: 100%; border-collapse: collapse;">
           <tbody>
-            <tr style="height: 0;">
-              <td>
-                <div style="font-size: 26px; font-weight: 700; color: #FFFFFF;">
+            <tr>
+              <td style="padding: 0;">
+                <div class="header-text" style="font-size: 26px; font-weight: 700; color: #FFFFFF;">
                   <span style="color: #61DAFB;">CODE</span> ARENA
                 </div>
               </td>
-              <td style="text-align: right;">
+              <td style="text-align: right; padding: 0;">
                 <span
+                  class="date-text"
                   style="font-size: 16px; line-height: 30px; color: #8A91B4;"
-                  ></span
-                >
+                >${currentDate}</span>
               </td>
             </tr>
           </tbody>
@@ -52,6 +105,7 @@ export const html = (otp) = `<!DOCTYPE html>
 
       <main>
         <div
+          class="content-card"
           style="
             margin: 0;
             margin-top: 50px;
@@ -64,9 +118,28 @@ export const html = (otp) = `<!DOCTYPE html>
           "
         >
           <div style="width: 100%; max-width: 489px; margin: 0 auto;">
-            <div style="width: 80px; height: 80px; margin: 0 auto; background-color: rgba(97, 218, 251, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-              <div style="font-size: 32px; color: #61DAFB;">🔐</div>
-            </div>
+            <!-- Lock icon container - fixed for email compatibility -->
+            <table style="margin: 0 auto; border-collapse: collapse;">
+              <tr>
+                <td>
+                  <div 
+                    class="icon-container"
+                    style="
+                      width: 80px; 
+                      height: 80px; 
+                      margin: 0 auto; 
+                      background-color: rgba(97, 218, 251, 0.1); 
+                      border-radius: 50%; 
+                      text-align: center;
+                      vertical-align: middle;
+                      line-height: 80px;
+                    "
+                  >
+                    <span style="font-size: 32px; color: #61DAFB; vertical-align: middle;">🔐</span>
+                  </div>
+                </td>
+              </tr>
+            </table>
             
             <h1
               style="
@@ -104,6 +177,7 @@ export const html = (otp) = `<!DOCTYPE html>
               This code is valid for <span style="font-weight: 600; color: #61DAFB;">5 minutes</span> only.
             </p>
             <div
+              class="otp-container"
               style="
                 margin: 40px auto;
                 padding: 20px;
@@ -113,6 +187,7 @@ export const html = (otp) = `<!DOCTYPE html>
               "
             >
               <p
+                class="otp-text"
                 style="
                   margin: 0;
                   font-size: 38px;
@@ -132,6 +207,7 @@ export const html = (otp) = `<!DOCTYPE html>
         </div>
 
         <p
+          class="help-text"
           style="
             max-width: 400px;
             margin: 0 auto;
@@ -178,74 +254,65 @@ export const html = (otp) = `<!DOCTYPE html>
           Code Arena
         </p>
         <p style="margin: 0; margin-top: 8px; color: #8A91B4; font-size: 13px;">
-          123 Dev Street, Tech City, CA 94107
+          CSIT 3rd floor, AKGEC, Ghaziabad, India
         </p>
-        <div style="margin: 20px 0;">
-          <a href="" target="_blank" style="display: inline-block; margin: 0 8px;">
-            <div style="
-              width: 36px;
-              height: 36px;
-              border-radius: 50%;
-              background-color: #1E2755;
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-              color: #61DAFB;
-              font-size: 16px;
-              text-decoration: none;
-            ">
-              <span>f</span>
-            </div>
-          </a>
-          <a href="" target="_blank" style="display: inline-block; margin: 0 8px;">
-            <div style="
-              width: 36px;
-              height: 36px;
-              border-radius: 50%;
-              background-color: #1E2755;
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-              color: #61DAFB;
-              font-size: 16px;
-              text-decoration: none;
-            ">
-              <span>in</span>
-            </div>
-          </a>
-          <a href="" target="_blank" style="display: inline-block; margin: 0 8px;">
-            <div style="
-              width: 36px;
-              height: 36px;
-              border-radius: 50%;
-              background-color: #1E2755;
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-              color: #61DAFB;
-              font-size: 16px;
-              text-decoration: none;
-            ">
-              <span>X</span>
-            </div>
-          </a>
-          <a href="" target="_blank" style="display: inline-block; margin: 0 8px;">
-            <div style="
-              width: 36px;
-              height: 36px;
-              border-radius: 50%;
-              background-color: #1E2755;
-              display: inline-flex;
-              align-items: center;
-              justify-content: center;
-              color: #61DAFB;
-              font-size: 16px;
-              text-decoration: none;
-            ">
-              <span>gh</span>
-            </div>
-          </a>
-        </div>
+        
+        <!-- Social icons using table for better email compatibility -->
+        <table class="social-icons" style="width: 100%; margin: 20px 0; border-collapse: collapse;">
+          <tr>
+            <td style="text-align: center;">
+              <table style="margin: 0 auto; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 0 8px;">
+                    <a href="" target="_blank" style="text-decoration: none; display: inline-block;">
+                      <table class="social-icon" style="width: 36px; height: 36px; border-collapse: collapse; background-color: #1E2755; border-radius: 50%;">
+                        <tr>
+                          <td style="text-align: center; vertical-align: middle; color: #61DAFB; font-size: 16px;">
+                            f
+                          </td>
+                        </tr>
+                      </table>
+                    </a>
+                  </td>
+                  <td style="padding: 0 8px;">
+                    <a href="" target="_blank" style="text-decoration: none; display: inline-block;">
+                      <table class="social-icon" style="width: 36px; height: 36px; border-collapse: collapse; background-color: #1E2755; border-radius: 50%;">
+                        <tr>
+                          <td style="text-align: center; vertical-align: middle; color: #61DAFB; font-size: 16px;">
+                            in
+                          </td>
+                        </tr>
+                      </table>
+                    </a>
+                  </td>
+                  <td style="padding: 0 8px;">
+                    <a href="" target="_blank" style="text-decoration: none; display: inline-block;">
+                      <table class="social-icon" style="width: 36px; height: 36px; border-collapse: collapse; background-color: #1E2755; border-radius: 50%;">
+                        <tr>
+                          <td style="text-align: center; vertical-align: middle; color: #61DAFB; font-size: 16px;">
+                            X
+                          </td>
+                        </tr>
+                      </table>
+                    </a>
+                  </td>
+                  <td style="padding: 0 8px;">
+                    <a href="" target="_blank" style="text-decoration: none; display: inline-block;">
+                      <table class="social-icon" style="width: 36px; height: 36px; border-collapse: collapse; background-color: #1E2755; border-radius: 50%;">
+                        <tr>
+                          <td style="text-align: center; vertical-align: middle; color: #61DAFB; font-size: 16px;">
+                            gh
+                          </td>
+                        </tr>
+                      </table>
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+        
         <p style="margin: 0; margin-top: 16px; color: #8A91B4; font-size: 12px;">
           © 2025 Code Arena. All rights reserved.
         </p>
@@ -253,3 +320,5 @@ export const html = (otp) = `<!DOCTYPE html>
     </div>
   </body>
 </html>`
+    )
+}
