@@ -1,46 +1,88 @@
 import { Request, Response } from "express";
-import User from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { IUser } from "../types/user.types.js";
+import User from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../utils/tools.js";
+import { sendOtpEmail } from "../utils/sendMail.js";
+
+
+const otpStore = new Map<string, {
+    user: { username: string; email: string; password: string };
+    otp: string;
+    expiry: number;
+}>();
 
 const registerUser = asyncHandler(async (req: Request, res: Response) => {
-    const { username, email, password }: { username?: string; email?: string; password?: string } = req.body;
+    const { username, email, password } = req.body;
 
     if (!username || !email || !password) {
-        throw new ApiError(400, "All fields are required");
+        throw new ApiError(400, "Username, email, and password are required");
     }
 
-    const existedUser = await User.findOne({
-        $or: [{ username }, { email }],
+    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    if (existingUser) {
+        throw new ApiError(409, "User already exists");
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+    otpStore.set(email, {
+        user: { username, email, password },
+        otp,
+        expiry
     });
-
-    if (existedUser) {
-        throw new ApiError(409, "User with email or username already exists");
+    console.log(email, otp, expiry);
+    try {
+        await sendOtpEmail(email, otp);
+    } catch (error) {
+        otpStore.delete(email);
+        throw new ApiError(500, "Failed to send OTP email");
     }
 
-    const user = await User.create({
-        username,
-        email,
-        password,
-    });
-
-    const createdUser = await User.findById(user._id).select("-password -refreshToken -contestsCreated");
-
-    if (!createdUser) {
-        throw new ApiError(500, "Something went wrong while registering the user");
-    }
-
-    res.status(201).json(new ApiResponse(201, createdUser, "User registered successfully"));
+    res.status(200).json(new ApiResponse(200, null, "OTP sent successfully"));
 });
 
-const loginUser = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { email, password }: { email?: string; password?: string } = req.body;
+const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+        throw new ApiError(400, "Email and OTP are required");
+    }
+
+    const stored = otpStore.get(email);
+
+    if (!stored) {
+        throw new ApiError(400, "No OTP found for this email");
+    }
+
+    if (Date.now() > stored.expiry) {
+        otpStore.delete(email);
+        throw new ApiError(400, "OTP expired");
+    }
+
+    if (stored.otp !== otp) {
+        throw new ApiError(401, "Invalid OTP");
+    }
+
+    const { username, password } = stored.user;
+
+
+    const newUser = await User.create({ username, email, password });
+    otpStore.delete(email);
+
+    const user = await User.findById(newUser._id).select("-password -refreshToken -contestsCreated");
+
+    res.status(201).json(new ApiResponse(201, user, "User registered successfully"));
+});
+
+const loginUser = asyncHandler(async (req: Request, res: Response) => {
+    const { email, password }: { email: string; password: string } = req.body;
 
     if (!email || !password) {
-        throw new ApiError(400, "All fields are required");
+        throw new ApiError(400, "Email and password are required");
     }
 
     const user = await User.findOne({ email }) as IUser | null;
@@ -67,12 +109,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response): Promise<void
     res
         .cookie("accessToken", accessToken, cookieOptions)
         .cookie("refreshToken", refreshToken, cookieOptions)
-        .json(
-            new ApiResponse(
-                200,
-                { user: loggedInUser, accessToken, refreshToken },
-                "User logged in successfully"
-            )
-        );
+        .json(new ApiResponse(200, { user: loggedInUser, accessToken, refreshToken }, "User logged in successfully"));
 });
-export { registerUser, loginUser };
+
+export { registerUser, loginUser, verifyOTP };

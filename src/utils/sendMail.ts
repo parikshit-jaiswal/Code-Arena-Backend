@@ -1,34 +1,41 @@
-import { Resend } from "resend";
-import dotenv from "dotenv";
+import nodemailer from 'nodemailer';
+import { html } from '../../public/mail/otpMailTemplet';
+import dotenv from 'dotenv';
+
 dotenv.config();
+// Validate environment variables
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    throw new Error('EMAIL_USER or EMAIL_PASS environment variables are not set');
+}
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+// Create transporter
+const transporter = nodemailer.createTransport({
+    service: 'Gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
+    debug: true, // Enable debug output
+    logger: true, // Log to console
+});
 
+// Function to send OTP email
+export async function sendOtpEmail(to: string, otp: string): Promise<void> {
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to,
+        subject: 'Your OTP Verification Code',
+        text: `Your OTP code is: ${otp}`,
+        html: html(otp),
+    };
 
-
-export const sendOtpEmail = async (email: string, otp: string) => {
-    if (!email || !otp) {
-        throw new Error("Email and OTP are required");
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('OTP Email sent: ', info.response);
+    } catch (error) {
+        console.log('EMAIL_USER:', process.env.EMAIL_USER);
+        console.log('EMAIL_PASS:', process.env.EMAIL_PASS);
+        console.error('Error sending OTP email: ', error);
+        throw error;
     }
-
-    const { data, error } = await resend.emails.send({
-        from: "Code Arena <onboarding@resend.dev>",
-        to: [email],
-        subject: "Your OTP Code",
-        html: html || `
-            <div style="font-family: sans-serif; padding: 1rem;">
-                <h2>Verify Your Email</h2>
-                <p>Your OTP code is:</p>
-                <h1 style="color: #4F46E5;">${otp}</h1>
-                <p>This code will expire in 10 minutes.</p>
-            </div>
-        `,
-    });
-
-    if (error) {
-        console.error("Error sending OTP email:", error);
-        throw new Error("Failed to send OTP email");
-    }
-    console.log(data)
-    return data;
-};
+}
