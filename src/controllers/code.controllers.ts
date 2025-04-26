@@ -44,7 +44,7 @@ const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> =
             return res.status(400).json(new ApiResponse(400, null, "Unsupported language"));
     }
 
-    const JUDGE0_API_URL = "http://51.21.253.210:2358"; // Your self-hosted Judge0 URL
+    const JUDGE0_API_URL = process.env.JUDGE0_API_URL;
 
     const results = await Promise.all(
         testCases.map(async ({ input, expectedOutput }, index) => {
