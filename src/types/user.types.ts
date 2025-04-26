@@ -6,6 +6,14 @@ export interface IContestParticipation {
     score: number;
 }
 
+declare global {
+  namespace Express {
+    interface Request {
+      user?: IUser;
+    }
+  }
+}
+
 export interface ISolvedProblem {
     problemId: mongoose.Types.ObjectId;
     solvedAt: Date;

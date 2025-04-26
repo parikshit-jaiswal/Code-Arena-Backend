@@ -1,8 +1,14 @@
 import e from "express";
-import { loginAdmin, registerAdmin } from "../controllers/admin.controllers";
+import { getAdminInfo, loginAdmin, registerAdmin } from "../controllers/admin.controllers";
 import router from "./test.routes";
+import { createContest } from "../controllers/contest.controller";
+import { verifyJWT } from "../middlewares/auth.middleware";
 
 router.route("/register").post(registerAdmin);
 router.route("/login").post(loginAdmin);
+
+//protected routes
+router.route("/get-admin").get(verifyJWT, getAdminInfo);
+router.route("/create-contest").post(verifyJWT, createContest);
 
 export default router;
