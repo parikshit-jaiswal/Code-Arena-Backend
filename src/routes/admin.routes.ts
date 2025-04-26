@@ -1,7 +1,7 @@
 import e from "express";
 import { getAdminInfo, loginAdmin, registerAdmin } from "../controllers/admin.controllers";
 import router from "./test.routes";
-import { createContest } from "../controllers/contest.controller";
+import { createContest } from "../controllers/contest.controllers";
 import { verifyJWT } from "../middlewares/auth.middleware";
 
 router.route("/register").post(registerAdmin);
