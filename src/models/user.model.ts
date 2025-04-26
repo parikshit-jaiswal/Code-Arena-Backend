@@ -2,6 +2,8 @@ import mongoose, { Schema, Model } from 'mongoose';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { IUser } from '../types/user.types';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const userSchema = new Schema<IUser>(
     {
@@ -91,34 +93,51 @@ userSchema.methods.isPasswordCorrect = async function (password: string): Promis
 };
 
 userSchema.methods.generateAccessToken = function (): string {
+    const secret = process.env.ACCESS_TOKEN_SECRET;
+    console.log(secret);
+    if (!secret) {
+        throw new Error("ACCESS_TOKEN_SECRET is not defined");
+    }
+//merging with main
     return jwt.sign(
         {
             _id: this._id,
             email: this.email,
             username: this.username,
         },
-        process.env.ACCESS_TOKEN_SECRET as string,
+        secret,
         {
             expiresIn: process.env.ACCESS_TOKEN_EXPIRY
                 ? process.env.ACCESS_TOKEN_EXPIRY
                 : undefined,
+            algorithm: 'HS256',
         }
     );
 };
 
+
 userSchema.methods.generateRefreshToken = function (): string {
+    const secret = process.env.REFRESH_TOKEN_SECRET;
+    console.log(parseInt(process.env.REFRESH_TOKEN_EXPIRY || '0'));
+    console.log(secret);
+    if (!secret) {
+        throw new Error("REFRESH_TOKEN_SECRET is not defined");
+    }
+
     return jwt.sign(
         {
             _id: this._id,
         },
-        process.env.REFRESH_TOKEN_SECRET as string,
+        secret,
         {
             expiresIn: process.env.REFRESH_TOKEN_EXPIRY
                 ? process.env.REFRESH_TOKEN_EXPIRY
                 : undefined,
+            algorithm: 'HS256',
         }
     );
 };
+
 
 const User: Model<IUser> = mongoose.model<IUser>('User', userSchema);
 export default User;

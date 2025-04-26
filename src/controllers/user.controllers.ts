@@ -85,25 +85,27 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
         throw new ApiError(400, "Email and password are required");
     }
 
-    const user = await User.findOne({ email }) as IUser | null;
+    const user = (await User.findOne({ email })) as IUser | null;
 
     if (!user) {
-        throw new ApiError(404, "User doesn't exist");
+      throw new ApiError(404, "User doesn't exist");
     }
 
     const isPasswordValid = await user.isPasswordCorrect(password);
 
     if (!isPasswordValid) {
-        throw new ApiError(401, "Incorrect user credentials");
+      throw new ApiError(401, "Incorrect user credentials");
     }
 
-    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id!.toString());
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+      user._id!.toString()
+    );
 
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken -contestsCreated");
 
     const cookieOptions = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
     };
 
     res
