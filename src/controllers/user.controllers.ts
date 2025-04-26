@@ -5,6 +5,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { IUser } from "../types/user.types.js";
 import { generateAccessAndRefreshTokens } from "../utils/tools.js";
+import jwt from "jsonwebtoken";
 
 const registerUser = asyncHandler(async (req: Request, res: Response) => {
     const { username, email, password }: { username?: string; email?: string; password?: string } = req.body;
@@ -98,6 +99,12 @@ const logoutUser = asyncHandler(async (req: Request, res: Response) => {
     .clearCookie("refreshToken", options)
     .json(new ApiResponse(200, {}, "User logged out successfully"));
 });
+
+interface DecodedToken {
+  _id: string;
+  iat: number;
+  exp: number;
+}
 
 const refreshAccessToken = asyncHandler(async (req: Request, res: Response) => {
   const incomingRefreshToken =

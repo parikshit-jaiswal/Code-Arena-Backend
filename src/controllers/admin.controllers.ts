@@ -78,4 +78,18 @@ const loginAdmin = asyncHandler(async (req: Request, res: Response): Promise<voi
             )
         );
 });
-export { registerAdmin, loginAdmin };
+
+const getAdminInfo = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    //TODO:
+    //1. Get the adminId from the request via middleware
+    //2. Find the admin in the database
+    //3. Return the admin info
+    const adminId = req.user?._id;
+    const admin = await User.findById(adminId).select("-password -refreshToken -rating -contestsParticipated -solvedProblems");
+    if (!admin) {
+        throw new ApiError(404, "Admin not found");
+    }
+    res.status(200).json(new ApiResponse(200, admin, "Admin info fetched successfully"));
+})
+
+export { registerAdmin, loginAdmin, getAdminInfo };
