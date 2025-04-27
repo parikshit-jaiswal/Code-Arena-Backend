@@ -1,8 +1,8 @@
 import e from "express";
-import { getAdminInfo, loginAdmin, registerAdmin } from "../controllers/admin.controllers";
-import router from "./test.routes";
-import { createContest } from "../controllers/contest.controllers";
-import { verifyJWT } from "../middlewares/auth.middleware";
+import { getAdminInfo, loginAdmin, registerAdmin } from "../controllers/admin.controllers.js";
+import router from "./test.routes.js";
+import { createContest } from "../controllers/contest.controllers.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 router.route("/register").post(registerAdmin);
 router.route("/login").post(loginAdmin);
