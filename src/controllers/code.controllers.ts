@@ -6,104 +6,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 dotenv.config();
 
-const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> => {
-    const {
-        code,
-        language,
-        testCases
-    }: {
-        code: string;
-        language: string;
-        testCases: { input: string; expectedOutput: string }[];
-    } = req.body;
-
-    if (!code || !language || !testCases || !Array.isArray(testCases)) {
-        return res.status(400).json(new ApiResponse(400, null, "Code, language, and testCases array are required"));
-    }
-
-    let languageId: number;
-
-    switch (language.toLowerCase()) {
-        case "python":
-            languageId = 71;
-            break;
-        case "javascript":
-            languageId = 63;
-            break;
-        case "java":
-            languageId = 62;
-            break;
-        case "c":
-            languageId = 50;
-            break;
-        case "cpp":
-        case "c++":
-            languageId = 54;
-            break;
-        default:
-            return res.status(400).json(new ApiResponse(400, null, "Unsupported language"));
-    }
-
-    const JUDGE0_API_URL = process.env.JUDGE0_API_URL;
-
-    const results = await Promise.all(
-        testCases.map(async ({ input, expectedOutput }, index) => {
-            try {
-                const response = await axios.post(
-                    `${JUDGE0_API_URL}/submissions?base64_encoded=false&wait=true`,
-                    {
-                        source_code: code,
-                        language_id: languageId,
-                        stdin: input,
-                        cpu_time_limit: 2,
-                        memory_limit: 128000
-                    },
-                    {
-                        headers: {
-                            "content-type": "application/json"
-                            // No RapidAPI keys needed for your own instance
-                        }
-                    }
-                );
-
-                const actual = (response.data.stdout || "").trim();
-                const expected = expectedOutput.trim();
-
-                return {
-                    testCase: index + 1,
-                    input,
-                    expectedOutput: expected,
-                    actualOutput: actual,
-                    passed: actual === expected,
-                    stderr: response.data.stderr,
-                    status: response.data.status?.description,
-                    time: response.data.time,
-                    memory: response.data.memory
-                };
-            } catch (error: any) {
-                return {
-                    testCase: index + 1,
-                    input,
-                    expectedOutput,
-                    actualOutput: "",
-                    passed: false,
-                    error: error.response?.data || error.message
-                };
-            }
-        })
-    );
-
-    const allPassed = results.every(r => r.passed);
-
-    return res.status(200).json(
-        new ApiResponse(200, {
-            allPassed,
-            results
-        }, allPassed ? "All test cases passed ✅" : "Some test cases failed ❌")
-    );
-});
-
-
 // const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> => {
 //     const {
 //         code,
@@ -142,11 +44,13 @@ const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> =
 //             return res.status(400).json(new ApiResponse(400, null, "Unsupported language"));
 //     }
 
+//     const JUDGE0_API_URL = process.env.JUDGE0_API_URL;
+
 //     const results = await Promise.all(
 //         testCases.map(async ({ input, expectedOutput }, index) => {
 //             try {
 //                 const response = await axios.post(
-//                     "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
+//                     `${JUDGE0_API_URL}/submissions?base64_encoded=false&wait=true`,
 //                     {
 //                         source_code: code,
 //                         language_id: languageId,
@@ -156,9 +60,8 @@ const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> =
 //                     },
 //                     {
 //                         headers: {
-//                             "content-type": "application/json",
-//                             "X-RapidAPI-Key": process.env.RAPID_API_KEY!,
-//                             "X-RapidAPI-Host": process.env.RAPID_API_HOST!
+//                             "content-type": "application/json"
+//                             // No RapidAPI keys needed for your own instance
 //                         }
 //                     }
 //                 );
@@ -199,6 +102,103 @@ const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> =
 //         }, allPassed ? "All test cases passed ✅" : "Some test cases failed ❌")
 //     );
 // });
+
+
+const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> => {
+    const {
+        code,
+        language,
+        testCases
+    }: {
+        code: string;
+        language: string;
+        testCases: { input: string; expectedOutput: string }[];
+    } = req.body;
+
+    if (!code || !language || !testCases || !Array.isArray(testCases)) {
+        return res.status(400).json(new ApiResponse(400, null, "Code, language, and testCases array are required"));
+    }
+
+    let languageId: number;
+
+    switch (language.toLowerCase()) {
+        case "python":
+            languageId = 71;
+            break;
+        case "javascript":
+            languageId = 63;
+            break;
+        case "java":
+            languageId = 62;
+            break;
+        case "c":
+            languageId = 50;
+            break;
+        case "cpp":
+        case "c++":
+            languageId = 54;
+            break;
+        default:
+            return res.status(400).json(new ApiResponse(400, null, "Unsupported language"));
+    }
+
+    const results = await Promise.all(
+        testCases.map(async ({ input, expectedOutput }, index) => {
+            try {
+                const response = await axios.post(
+                    "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
+                    {
+                        source_code: code,
+                        language_id: languageId,
+                        stdin: input,
+                        cpu_time_limit: 2,
+                        memory_limit: 128000
+                    },
+                    {
+                        headers: {
+                            "content-type": "application/json",
+                            "X-RapidAPI-Key": process.env.RAPID_API_KEY!,
+                            "X-RapidAPI-Host": process.env.RAPID_API_HOST!
+                        }
+                    }
+                );
+
+                const actual = (response.data.stdout || "").trim();
+                const expected = expectedOutput.trim();
+
+                return {
+                    testCase: index + 1,
+                    input,
+                    expectedOutput: expected,
+                    actualOutput: actual,
+                    passed: actual === expected,
+                    stderr: response.data.stderr,
+                    status: response.data.status?.description,
+                    time: response.data.time,
+                    memory: response.data.memory
+                };
+            } catch (error: any) {
+                return {
+                    testCase: index + 1,
+                    input,
+                    expectedOutput,
+                    actualOutput: "",
+                    passed: false,
+                    error: error.response?.data || error.message
+                };
+            }
+        })
+    );
+
+    const allPassed = results.every(r => r.passed);
+
+    return res.status(200).json(
+        new ApiResponse(200, {
+            allPassed,
+            results
+        }, allPassed ? "All test cases passed ✅" : "Some test cases failed ❌")
+    );
+});
 
 // const getLanguages = asyncHandler(async (req: Request, res: Response): Promise<any> => {
 //     try {
