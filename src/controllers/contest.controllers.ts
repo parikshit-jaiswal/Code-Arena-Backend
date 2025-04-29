@@ -65,6 +65,7 @@ const joinContest = asyncHandler(async (req: Request, res: Response) => {
     if (!contest) {
         throw new ApiError(404, "Contest not found");
     }
+    
 })
 
 export { createContest };
