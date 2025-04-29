@@ -98,7 +98,7 @@ userSchema.methods.generateAccessToken = function (): string {
     if (!secret) {
         throw new Error("ACCESS_TOKEN_SECRET is not defined");
     }
-//merging with main
+    //merging with main
     return jwt.sign(
         {
             _id: this._id,
@@ -111,7 +111,7 @@ userSchema.methods.generateAccessToken = function (): string {
                 ? process.env.ACCESS_TOKEN_EXPIRY
                 : undefined,
             algorithm: 'HS256',
-        }
+        } as jwt.SignOptions
     );
 };
 
@@ -134,7 +134,7 @@ userSchema.methods.generateRefreshToken = function (): string {
                 ? process.env.REFRESH_TOKEN_EXPIRY
                 : undefined,
             algorithm: 'HS256',
-        }
+        } as jwt.SignOptions
     );
 };
 
