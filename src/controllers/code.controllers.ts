@@ -32,7 +32,7 @@ const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> =
 
     try {
         const response = await axios.post(
-            JUDGE0_API_URL,
+            CODE_EXEC_API_URL,
             { code, language, testCases },
             { headers: { "Content-Type": "application/json" } }
         );
