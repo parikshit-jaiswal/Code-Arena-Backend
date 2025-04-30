@@ -9,6 +9,5 @@ router.route("/login").post(loginAdmin);
 
 //protected routes
 router.route("/get-admin").get(verifyJWT, getAdminInfo);
-router.route("/create-contest").post(verifyJWT, createContest);
 
 export default router;
