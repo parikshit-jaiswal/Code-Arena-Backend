@@ -60,12 +60,49 @@ const joinContest = asyncHandler(async (req: Request, res: Response) => {
     //9. Return the updated contest as a response
     
     const userId = req.user?._id;
+    const user = await User.findById(userId);
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+    if(user.role !== "participant") {
+        throw new ApiError(403, "You are not authorized to join a contest");
+    }
+
     const { contestId } = req.params;
     const contest = await Contest.findById(contestId);
     if (!contest) {
         throw new ApiError(404, "Contest not found");
     }
+    if (contest.participants.includes(userId)) {
+        throw new ApiError(409, "You are already a participant in this contest");
+    }
+    
+    contest.participants.push(userId);
+
+
+    const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { $push: { contestsParticipated: contest._id } },
+        { new: true }
+      );
+    if (!updatedUser) {
+        throw new ApiError(500, "Something went wrong while updating the user");
+    }
+    await contest.save();
+    res
+    .status(200)
+    .json(new ApiResponse(200, contest, "Contest joined successfully"));
     
 })
 
-export { createContest };
+const getAllContests = asyncHandler(async (req: Request, res: Response) => {
+    //TODO:
+    //1. Get all the contests from the database
+    //2. Return the contests as a response
+    const contests = await Contest.find();
+    res
+    .status(200)
+    .json(new ApiResponse(200, contests, "Contests retrieved successfully"));
+});
+
+export { createContest, joinContest, getAllContests };
