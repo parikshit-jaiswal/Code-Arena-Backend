@@ -23,8 +23,8 @@ const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> =
         );
     }
 
-    const JUDGE0_API_URL = process.env.JUDGE0_API_URL;
-    if (!JUDGE0_API_URL) {
+    const CODE_EXEC_API_URL = process.env.CODE_EXEC_API_URL;
+    if (!CODE_EXEC_API_URL) {
         return res.status(500).json(
             new ApiResponse(500, null, "Judge0 API URL is not configured")
         );
