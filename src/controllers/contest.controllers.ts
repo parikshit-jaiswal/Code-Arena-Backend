@@ -6,6 +6,7 @@ import { IContest } from "../types/contest.types.js";
 import Contest from "../models/contest.model.js";
 import { IUser } from "../types/user.types.js";
 import User from "../models/user.model.js";
+import mongoose from "mongoose";
 
 const createContest = asyncHandler(async (req: Request, res: Response) => {
     //TODO: 
@@ -38,13 +39,13 @@ const createContest = asyncHandler(async (req: Request, res: Response) => {
         userId,
         { $push: { contestsCreated: contest._id } },
         { new: true }
-      );
+    );
     if (!updatedUser) {
         throw new ApiError(500, "Something went wrong while updating the user");
-    }      
+    }
     res
-    .status(201)
-    .json(new ApiResponse(201, contest, "Contest created successfully"));
+        .status(201)
+        .json(new ApiResponse(201, contest, "Contest created successfully"));
 })
 
 const joinContest = asyncHandler(async (req: Request, res: Response) => {
@@ -58,13 +59,14 @@ const joinContest = asyncHandler(async (req: Request, res: Response) => {
     //7. If user is not a participant, add the userId to the participants array of the contest
     //8. Add the contestId to the user's contestsParticipated array
     //9. Return the updated contest as a response
-    
-    const userId = req.user?._id;
+
+    const userId = req.user?._id as mongoose.Types.ObjectId;
     const user = await User.findById(userId);
+
     if (!user) {
         throw new ApiError(404, "User not found");
     }
-    if(user.role !== "participant") {
+    if (user.role !== "participant") {
         throw new ApiError(403, "You are not authorized to join a contest");
     }
 
@@ -73,36 +75,46 @@ const joinContest = asyncHandler(async (req: Request, res: Response) => {
     if (!contest) {
         throw new ApiError(404, "Contest not found");
     }
-    if (contest.participants.includes(userId)) {
+
+    // Check if the user is already a participant
+    const alreadyParticipant = contest.participants.some(p =>
+        p.userId.equals(userId)
+    );
+    if (alreadyParticipant) {
         throw new ApiError(409, "You are already a participant in this contest");
     }
-    
-    contest.participants.push(userId);
 
+    // Push as an IParticipant object
+    contest.participants.push({
+        userId,
+        joinedAt: new Date(),
+    });
 
     const updatedUser = await User.findByIdAndUpdate(
         userId,
         { $push: { contestsParticipated: contest._id } },
         { new: true }
-      );
+    );
+
     if (!updatedUser) {
         throw new ApiError(500, "Something went wrong while updating the user");
     }
-    await contest.save();
-    res
-    .status(200)
-    .json(new ApiResponse(200, contest, "Contest joined successfully"));
+
+        await contest.save();
     
-})
-
-const getAllContests = asyncHandler(async (req: Request, res: Response) => {
-    //TODO:
-    //1. Get all the contests from the database
-    //2. Return the contests as a response
-    const contests = await Contest.find();
-    res
-    .status(200)
-    .json(new ApiResponse(200, contests, "Contests retrieved successfully"));
-});
-
-export { createContest, joinContest, getAllContests };
+        res.status(200).json(
+            new ApiResponse(200, contest, "Contest joined successfully")
+        );
+    });
+    
+    const getAllContests = asyncHandler(async (req: Request, res: Response) => {
+        //TODO:
+        //1. Get all the contests from the database
+        //2. Return the contests as a response
+        const contests = await Contest.find();
+        res
+            .status(200)
+            .json(new ApiResponse(200, contests, "Contests retrieved successfully"));
+    });
+    
+    export { createContest, joinContest, getAllContests };
