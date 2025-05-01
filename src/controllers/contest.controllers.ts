@@ -7,6 +7,7 @@ import Contest from "../models/contest.model.js";
 import { IUser } from "../types/user.types.js";
 import User from "../models/user.model.js";
 import mongoose from "mongoose";
+import Problem from "../models/problem.model.js";
 
 const createContest = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -136,10 +137,104 @@ const getAllContests = asyncHandler(async (req: Request, res: Response) => {
   //TODO:
   //1. Get all the contests from the database
   //2. Return the contests as a response
+
+  const aggregatedContests = await Contest.aggregate([
+    {
+      $lookup: {
+        from: "problems",
+        localField: "problems",
+        foreignField: "_id",
+        as: "problems",
+      }
+    },
+  ])
+  if (!aggregatedContests) {
+    throw new ApiError(404, "No contests found");
+  }
+  
   const contests = await Contest.find();
   res
     .status(200)
-    .json(new ApiResponse(200, contests, "Contests retrieved successfully"));
+    .json(new ApiResponse(200, aggregatedContests, "Contests retrieved successfully"));
 });
 
-export { createContest, joinContest, getAllContests };
+const addProblems = asyncHandler(async (req: Request, res: Response) => {
+  const { contestId } = req.params;
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+
+  const {
+    title,
+    statement,
+    inputFormat,
+    outputFormat,
+    constraints,
+    sampleInput,
+    sampleOutput,
+    explanation,
+    difficulty,
+    tags,
+    testCaseInput,
+    testCaseOutput,
+    testCaseExplanation,
+    timeLimit,
+    memoryLimit,
+  } = req.body;
+
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+  if (!contest.problems) {
+    contest.problems = [];
+  }
+  if (
+    !contest.organizer.equals(userId) &&
+    !contest.moderators.some((mod: mongoose.Types.ObjectId) =>
+      mod.equals(userId)
+    )
+  ) {
+    throw new ApiError(403, "You are not authorized to edit the contest");
+  }
+
+  const problem = await Problem.create({
+    title,
+    statement,
+    inputFormat,
+    outputFormat,
+    constraints,
+    sampleInput,
+    sampleOutput,
+    explanation,
+    difficulty,
+    createdBy: userId,
+    tags,
+    testCases: {
+      input: testCaseInput,
+      output: testCaseOutput,
+      explanation: testCaseExplanation,
+    },
+    timeLimit,
+    memoryLimit,
+  });
+
+  if (!problem) {
+    throw new ApiError(500, "Something went wrong while creating the problem");
+  }
+
+  contest.problems.push(problem._id as mongoose.Types.ObjectId);
+  await contest.save();
+
+  const updatedContest = await Contest.findById(contestId).populate("problems");
+
+  res
+    .status(201)
+    .json(
+      new ApiResponse(
+        201,
+        updatedContest,
+        "Problem added to the contest successfully"
+      )
+    );
+});
+
+export { createContest, joinContest, getAllContests, addProblems };

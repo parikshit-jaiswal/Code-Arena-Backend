@@ -87,7 +87,6 @@ const getAdminInfo = asyncHandler(async (req: Request, res: Response): Promise<v
     throw new ApiError(400, "Admin ID is required");
   }
 
-  // Use aggregation to fetch admin info and populate contestsCreated
   const adminInfo = await User.aggregate([
     {
       $match: { _id: new mongoose.Types.ObjectId(adminId as mongoose.Types.ObjectId) }, 
@@ -98,6 +97,23 @@ const getAdminInfo = asyncHandler(async (req: Request, res: Response): Promise<v
         localField: "contestsCreated.contestId",
         foreignField: "_id", 
         as: "contestsCreated", 
+        pipeline: [
+          {
+            $lookup: {
+              from: "problems",
+              localField: "problems",
+              foreignField: "_id",
+              as: "problems",
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner"
+              }
+            }
+          }
+        ],
       },
     },
     {
