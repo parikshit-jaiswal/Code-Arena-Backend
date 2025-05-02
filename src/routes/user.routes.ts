@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { loginUser, registerUser, logoutUser, refreshAccessToken, verifyLoginOTP, forgetPassword, verifyResetPasswordOTP, updatePassword } from "../controllers/user.controllers.js";
+import { loginUser, registerUser, logoutUser, refreshAccessToken, verifyLoginOTP, forgetPassword, verifyResetPasswordOTP, updatePassword, getUserData } from "../controllers/user.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { getAllContests, joinContest } from "../controllers/contest.controllers.js";
 
@@ -17,6 +17,7 @@ router.route('/update-password').post(updatePassword);
 //protected routes here
 router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/refresh-token").post(refreshAccessToken);
+router.route('/get-user-data').get(verifyJWT, getUserData);
 
 
 export default router;

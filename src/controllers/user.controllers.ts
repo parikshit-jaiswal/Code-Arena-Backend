@@ -7,6 +7,7 @@ import User from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../utils/tools.js";
 import jwt from "jsonwebtoken";
 import { sendOtpEmail } from "../utils/sendMail.js";
+import mongoose from "mongoose";
 
 
 const otpStore = new Map<string, {
@@ -308,4 +309,20 @@ const updatePassword = asyncHandler(async (req: Request, res: Response) => {
     res.status(200).json(new ApiResponse(200, {}, "Password updated successfully"));
 });
 
-export { registerUser, loginUser, verifyLoginOTP, logoutUser, refreshAccessToken, changePassword, forgetPassword, verifyResetPasswordOTP, updatePassword };
+const getUserData = asyncHandler(async (req: Request, res: Response) => {
+    const userId = (req as any).user._id;
+    
+    const user = await User.findById(userId) as IUser | null;
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    //TODO: 
+    //1. We are getting all the contests participated by the user
+    //2. Now what we need to do is get the contest details for each contest
+    //3. Then further nest aggregate the problems in each contest
+
+    res.status(200).json(new ApiResponse(200, user, "User data retrieved successfully"));
+})
+
+export { registerUser, loginUser, verifyLoginOTP, logoutUser, refreshAccessToken, changePassword, forgetPassword, verifyResetPasswordOTP, updatePassword, getUserData };

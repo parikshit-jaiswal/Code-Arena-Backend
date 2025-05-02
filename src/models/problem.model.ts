@@ -1,20 +1,7 @@
-import mongoose, { Schema} from "mongoose";
+import mongoose, { Model, Schema} from "mongoose";
+import { IProblem } from "../types/problem.types";
 
 const problemSchema = new Schema({
-// title
-// statement
-// input format
-// outputFormat
-// constraints
-// sampleInput
-// sampleOutput
-// explaination
-// difficulty
-// created BY:UserID
-// tags
-// testCase:objectID
-// timeLimit
-// memoryLimit
 
     title: {
         type: String,
@@ -74,7 +61,7 @@ const problemSchema = new Schema({
             },
             explanation: {
                 type: String,
-                required: true
+                required: false
             }
         }
     ],
@@ -89,3 +76,6 @@ const problemSchema = new Schema({
 }, {
     timestamps: true
 })
+
+const Problem: Model<IProblem> = mongoose.model<IProblem>("Problem", problemSchema);
+export default Problem;
