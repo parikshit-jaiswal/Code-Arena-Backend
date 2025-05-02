@@ -44,15 +44,8 @@ const userSchema = new Schema<IUser>(
     },
     contestsParticipated: [
       {
-        contestId: { type: Schema.Types.ObjectId, ref: "Contest" },
-        rank: Number,
-        score: Number,
-        problemSolved: [
-          {
-            problemId: { type: Schema.Types.ObjectId, ref: "Problem" },
-            score: Number,
-          },
-        ],
+        type: Schema.Types.ObjectId,
+        ref: "Contest",
       },
     ],
     solvedProblems: [
