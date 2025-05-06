@@ -8,6 +8,7 @@ import { generateAccessAndRefreshTokens } from "../utils/tools.js";
 import jwt from "jsonwebtoken";
 import { sendOtpEmail } from "../utils/sendMail.js";
 import mongoose from "mongoose";
+import { verifyGoogleToken, getGoogleUser } from "../utils/googleAuth.js";
 
 
 const otpStore = new Map<string, {
@@ -117,10 +118,10 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
         .json(
             new ApiResponse(
                 200,
-                { 
-                    user: loggedInUser, 
-                    accessToken, 
-                    refreshToken 
+                {
+                    user: loggedInUser,
+                    accessToken,
+                    refreshToken
                 },
                 "User logged in successfully"
             )
@@ -298,7 +299,7 @@ const updatePassword = asyncHandler(async (req: Request, res: Response) => {
         throw new ApiError(404, "User not found");
     }
 
-    if(user.password === newPassword) {
+    if (user.password === newPassword) {
         throw new ApiError(400, "New password cannot be the same as the old password");
     }
 
@@ -311,7 +312,7 @@ const updatePassword = asyncHandler(async (req: Request, res: Response) => {
 
 const getUserData = asyncHandler(async (req: Request, res: Response) => {
     const userId = (req as any).user._id;
-    
+
     const user = await User.findById(userId) as IUser | null;
     if (!user) {
         throw new ApiError(404, "User not found");
@@ -325,4 +326,40 @@ const getUserData = asyncHandler(async (req: Request, res: Response) => {
     res.status(200).json(new ApiResponse(200, user, "User data retrieved successfully"));
 })
 
-export { registerUser, loginUser, verifyLoginOTP, logoutUser, refreshAccessToken, changePassword, forgetPassword, verifyResetPasswordOTP, updatePassword, getUserData };
+const googleLogin = asyncHandler(async (req: Request, res: Response) => {
+    const idToken = req.body.idToken;
+    if (!idToken) {
+        throw new ApiError(400, "ID token is required");
+    }
+
+    const googleUser = await getGoogleUser(idToken);
+
+    if (!googleUser || !googleUser.email) {
+        throw new ApiError(401, "Invalid Google ID token");
+    }
+
+    const { email, name, picture } = googleUser;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+        user = await User.create({
+            username: name,
+            email,
+            profile: { avatarUrl: picture },
+            password: "",
+        });
+    }
+
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id!.toString());
+
+    const message = user.createdAt.getTime() === user.updatedAt.getTime()
+        ? "User registered successfully"
+        : "User logged in successfully";
+
+
+    res.status(200).json(new ApiResponse(200, { user, accessToken, refreshToken }, message));
+});
+
+
+export { registerUser, loginUser, verifyLoginOTP, logoutUser, refreshAccessToken, changePassword, forgetPassword, verifyResetPasswordOTP, updatePassword, getUserData, googleLogin };
