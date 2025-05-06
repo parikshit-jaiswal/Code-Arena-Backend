@@ -5,6 +5,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { IUser } from "../types/user.types.js";
 import { generateAccessAndRefreshTokens } from "../utils/tools.js";
+import mongoose from "mongoose";
 
 
 const registerAdmin = asyncHandler(async (req: Request, res: Response) => {
@@ -80,16 +81,57 @@ const loginAdmin = asyncHandler(async (req: Request, res: Response): Promise<voi
 });
 
 const getAdminInfo = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    //TODO:
-    //1. Get the adminId from the request via middleware
-    //2. Find the admin in the database
-    //3. Return the admin info
-    const adminId = req.user?._id;
-    const admin = await User.findById(adminId).select("-password -refreshToken -rating -contestsParticipated -solvedProblems");
-    if (!admin) {
-        throw new ApiError(404, "Admin not found");
-    }
-    res.status(200).json(new ApiResponse(200, admin, "Admin info fetched successfully"));
-})
+  const adminId = req.user?._id;
+
+  if (!adminId) {
+    throw new ApiError(400, "Admin ID is required");
+  }
+
+  const adminInfo = await User.aggregate([
+    {
+      $match: { _id: new mongoose.Types.ObjectId(adminId as mongoose.Types.ObjectId) }, 
+    },
+    {
+      $lookup: {
+        from: "contests",
+        localField: "contestsCreated.contestId",
+        foreignField: "_id", 
+        as: "contestsCreated", 
+        pipeline: [
+          {
+            $lookup: {
+              from: "problems",
+              localField: "problems",
+              foreignField: "_id",
+              as: "problems",
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner"
+              }
+            }
+          }
+        ],
+      },
+    },
+    {
+      $project: {
+        password: 0, 
+        refreshToken: 0,
+        rating: 0,
+        contestsParticipated: 0,
+        solvedProblems: 0,
+      },
+    },
+  ]);
+
+  if (!adminInfo || adminInfo.length === 0) {
+    throw new ApiError(404, "Admin not found");
+  }
+
+  res.status(200).json(new ApiResponse(200, adminInfo[0], "Admin info fetched successfully"));
+});
 
 export { registerAdmin, loginAdmin, getAdminInfo };

@@ -7,12 +7,14 @@ import User from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../utils/tools.js";
 import jwt from "jsonwebtoken";
 import { sendOtpEmail } from "../utils/sendMail.js";
+import mongoose from "mongoose";
 
 
 const otpStore = new Map<string, {
-    user: { username: string; email: string; password: string };
+    user: { username: string; email: string; password: string, verified?: boolean };
     otp: string;
     expiry: number;
+    otpVerified?: boolean;
 }>();
 
 const registerUser = asyncHandler(async (req: Request, res: Response) => {
@@ -46,7 +48,7 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     res.status(200).json(new ApiResponse(200, null, "OTP sent successfully"));
 });
 
-const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
+const verifyLoginOTP = asyncHandler(async (req: Request, res: Response) => {
     const { email, otp } = req.body;
 
     if (!email || !otp) {
@@ -200,4 +202,127 @@ const refreshAccessToken = asyncHandler(async (req: Request, res: Response) => {
     }
 });
 
-export { registerUser, loginUser, verifyOTP, logoutUser, refreshAccessToken };
+const changePassword = asyncHandler(async (req: Request, res: Response) => {
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+        throw new ApiError(400, "Old and new passwords are required");
+    }
+
+    const user = await User.findById((req as any).user._id) as IUser | null;
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    const isPasswordValid = await user.isPasswordCorrect(oldPassword);
+    if (!isPasswordValid) {
+        throw new ApiError(401, "Incorrect password");
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json(new ApiResponse(200, {}, "Password changed successfully"));
+})
+
+const forgetPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+    const user = await User.findOne({ email }) as IUser | null;
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = Date.now() + 5 * 60 * 1000; // 5 minutes
+    otpStore.set(email, {
+        user: { username: user.username, email: user.email, password: user.password },
+        otp,
+        expiry,
+    });
+
+    try {
+        await sendOtpEmail(email, otp);
+    } catch (error) {
+        otpStore.delete(email);
+        throw new ApiError(500, "Failed to send OTP email");
+    }
+    console.log(email, otp, expiry);
+
+    res.status(200).json(new ApiResponse(200, {}, "OTP sent to email"));
+})
+
+const verifyResetPasswordOTP = asyncHandler(async (req: Request, res: Response) => {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+        throw new ApiError(400, "Email and OTP are required");
+    }
+
+    const stored = otpStore.get(email);
+
+    if (!stored) {
+        throw new ApiError(400, "No OTP found for this email");
+    }
+
+    if (Date.now() > stored.expiry) {
+        otpStore.delete(email);
+        throw new ApiError(400, "OTP expired");
+    }
+
+    if (stored.otp !== otp) {
+        throw new ApiError(401, "Invalid OTP");
+    }
+
+    otpStore.set(email, { ...stored, otpVerified: true });
+
+    res.status(200).json(new ApiResponse(200, {}, "OTP verified successfully"));
+});
+
+const updatePassword = asyncHandler(async (req: Request, res: Response) => {
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+        throw new ApiError(400, "Email and new password are required");
+    }
+
+    const stored = otpStore.get(email);
+
+    if (!stored || !stored.otpVerified) {
+        throw new ApiError(400, "OTP verification is required before updating the password");
+    }
+
+    const user = await User.findOne({ email }) as IUser | null;
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    if(user.password === newPassword) {
+        throw new ApiError(400, "New password cannot be the same as the old password");
+    }
+
+    user.password = newPassword;
+    await user.save();
+    otpStore.delete(email);
+
+    res.status(200).json(new ApiResponse(200, {}, "Password updated successfully"));
+});
+
+const getUserData = asyncHandler(async (req: Request, res: Response) => {
+    const userId = (req as any).user._id;
+    
+    const user = await User.findById(userId) as IUser | null;
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    //TODO: 
+    //1. We are getting all the contests participated by the user
+    //2. Now what we need to do is get the contest details for each contest
+    //3. Then further nest aggregate the problems in each contest
+
+    res.status(200).json(new ApiResponse(200, user, "User data retrieved successfully"));
+})
+
+export { registerUser, loginUser, verifyLoginOTP, logoutUser, refreshAccessToken, changePassword, forgetPassword, verifyResetPasswordOTP, updatePassword, getUserData };

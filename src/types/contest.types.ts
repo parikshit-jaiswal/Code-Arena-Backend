@@ -12,6 +12,7 @@ export interface ISubmission {
 export interface IContest extends mongoose.Document {
     title: string;
     description?: string;
+    moderators: mongoose.Types.ObjectId[];
     organizer: mongoose.Types.ObjectId;
     startTime: Date;
     endTime: Date;
