@@ -9,6 +9,7 @@ import {
   verifyResetPasswordOTP,
   updatePassword,
   getUserData,
+  googleLogin,
 } from "../controllers/user.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import {
@@ -24,6 +25,7 @@ router.route("/v").post(verifyLoginOTP);
 router.route("/forgot-password").post(forgetPassword);
 router.route("/verify-reset-password-otp").post(verifyResetPasswordOTP);
 router.route("/update-password").post(updatePassword);
+router.route("/google").post(googleLogin);
 
 //protected routes here
 router.route("/logout").post(verifyJWT, logoutUser);
