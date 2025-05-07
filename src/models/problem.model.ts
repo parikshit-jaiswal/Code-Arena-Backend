@@ -7,6 +7,10 @@ const problemSchema = new Schema({
         type: String,
         required: true
     },
+    isSolved: {
+        type: Boolean,
+        default: false  
+    },
     statement: {
         type: String,
         required:true,
