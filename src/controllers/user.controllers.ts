@@ -394,10 +394,27 @@ const getUserData = asyncHandler(async (req: Request, res: Response) => {
     },
     {
       $lookup: {
-        from: "contests", // The name of the Contest collection
-        localField: "contestsParticipated", // Reference the nested contestId field
-        foreignField: "_id", // Match with the _id field in the Contest collection
-        as: "contestsParticipated", // Output field for the joined data
+        from: "contests", 
+        localField: "contestsParticipated.contestId", 
+        foreignField: "_id",
+        as: "contestsParticipated", 
+        pipeline: [
+          {
+            $lookup: {
+              from: "problems",
+              localField: "problems",
+              foreignField: "_id",
+              as: "problems",
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner"
+              }
+            }
+          }
+        ],
       },
     },
     {

@@ -43,8 +43,7 @@ const userSchema = new Schema<IUser>(
     },
     contestsParticipated: [
       {
-        type: Schema.Types.ObjectId,
-        ref: "Contest",
+        contestId: { type: Schema.Types.ObjectId, ref: "Contest" },
       },
     ],
     solvedProblems: [

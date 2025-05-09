@@ -75,17 +75,6 @@ const createContest = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const joinContest = asyncHandler(async (req: Request, res: Response) => {
-  //TODO:
-  //1. Validate that the user is participant
-  //2. From the request params get the contestId
-  //3. Now search the contest from the database
-  //4. If contest is not found, return 404
-  //5. If contest is found, check if the user is already a participant
-  //6. If user is already a participant, return 409
-  //7. If user is not a participant, add the userId to the participants array of the contest
-  //8. Add the contestId to the user's contestsParticipated array
-  //9. Return the updated contest as a response
-
   const userId = req.user?._id as mongoose.Types.ObjectId;
   const user = await User.findById(userId);
 
@@ -98,6 +87,7 @@ const joinContest = asyncHandler(async (req: Request, res: Response) => {
 
   const { contestId } = req.params;
   const contest = await Contest.findById(contestId);
+
   if (!contest) {
     throw new ApiError(404, "Contest not found");
   }
@@ -110,15 +100,31 @@ const joinContest = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(409, "You are already a participant in this contest");
   }
 
-  // Push as an IParticipant object
+  // Add the user to the contest's participants array
   contest.participants.push({
     userId,
     joinedAt: new Date(),
   });
 
+  // Add the contest to the user's contestsParticipated array
   const updatedUser = await User.findByIdAndUpdate(
     userId,
-    { $push: { contestsParticipated: contest._id } },
+    {
+      $push: {
+        contestsParticipated: {
+          contestId: contest._id,
+          title: contest.title,
+          description: contest.description,
+          startTime: contest.startTime,
+          endTime: contest.endTime,
+          duration: contest.duration,
+          problems: contest.problems,
+          isRated: contest.isRated,
+          tags: contest.tags,
+          rules: contest.rules,
+        },
+      },
+    },
     { new: true }
   );
 
@@ -126,6 +132,7 @@ const joinContest = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(500, "Something went wrong while updating the user");
   }
 
+  // Save the updated contest
   await contest.save();
 
   res
