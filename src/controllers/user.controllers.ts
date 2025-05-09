@@ -483,4 +483,14 @@ const googleLogin = asyncHandler(async (req: Request, res: Response) => {
 });
 
 
-export { registerUser, loginUser, verifyLoginOTP, logoutUser, refreshAccessToken, changePassword, forgetPassword, verifyResetPasswordOTP, updatePassword, getUserData, googleLogin };
+export { registerUser,
+         loginUser, 
+         verifyLoginOTP, 
+         logoutUser, 
+         refreshAccessToken, 
+         changePassword, 
+         forgetPassword, 
+         verifyResetPasswordOTP, 
+         updatePassword, 
+         getUserData, 
+         googleLogin };

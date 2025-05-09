@@ -11,6 +11,11 @@ const problemSchema = new Schema({
         type: Boolean,
         default: false  
     },
+    solution: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Solution",
+        required: false,
+    },
     statement: {
         type: String,
         required:true,

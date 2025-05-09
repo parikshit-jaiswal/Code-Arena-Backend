@@ -244,4 +244,116 @@ const addProblems = asyncHandler(async (req: Request, res: Response) => {
     );
 });
 
-export { createContest, joinContest, getAllContests, addProblems };
+const enterContest = asyncHandler(async (req: Request, res: Response) => {
+//TODO:
+  //1. Get the contestId from the request params
+  //1.5 Verify the role of the user
+  //2. Verify if the contest exists 
+  //3. Verify if the user is already a participant
+
+  const { contestId } = req.params;
+
+  if (!mongoose.isValidObjectId(contestId)) {
+    throw new ApiError(400, "Invalid Contest ID format");
+  }
+
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  if (user.role !== "participant") {
+    throw new ApiError(403, "You are not authorized to join a contest");
+  }
+
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+
+  const alreadyParticipant = contest.participants.some((p) =>
+    p.userId.equals(userId)
+  );
+  if (!alreadyParticipant) {
+    throw new ApiError(409, "You are not a participant in this contest");
+  }
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, contest, "Contest entered successfully"));
+});
+
+const startContest = asyncHandler(async (req: Request, res: Response) => {
+  //TODO:
+  //1. Get the contestId from the request params
+  //1.5 Verify the role of the user
+  //2. Verify if the contest exists 
+  //3. Verify if the user is already a participant
+  //4. aggregate problems from the problem id in the contest
+
+  const { contestId } = req.params;
+
+  if (!mongoose.isValidObjectId(contestId)) {
+    throw new ApiError(400, "Invalid Contest ID format");
+  }
+
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  if (user.role !== "participant") {
+    throw new ApiError(403, "You are not authorized to join a contest");
+  }
+
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+
+  const alreadyParticipant = contest.participants.some((p) =>
+    p.userId.equals(userId)
+  );
+  if (!alreadyParticipant) {
+    throw new ApiError(409, "You are not a participant in this contest");
+  }
+
+  // const contestExist = await Contest.findById(contestId);
+  // console.log(contestExist);
+
+  const currentTime = new Date();
+  if (currentTime < contest.startTime) {
+    throw new ApiError(400, "The contest has not started yet");
+  }
+  if (currentTime > contest.endTime) {
+    throw new ApiError(400, "The contest is over");
+  }
+  
+
+  const updatedContest = await Contest.aggregate([
+    {
+      $match: {
+        _id: contest._id,
+      }
+    },
+    {
+      $lookup: {
+        from: "problems",
+        localField: "problems",
+        foreignField: "_id",
+        as: "problems",
+      },
+    }
+  ])
+
+  console.log(updatedContest);
+  
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, updatedContest, "Contest started successfully"));
+
+
+})
+
+export { createContest, joinContest, getAllContests, addProblems, enterContest, startContest };
