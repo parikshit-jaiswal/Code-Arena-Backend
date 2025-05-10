@@ -5,7 +5,7 @@ export const html = (otp: string) => {
         month: 'long',
         day: 'numeric'
     });
-    // console.log(currentDate)
+    
 
     return (`<!DOCTYPE html>
 <html lang="en">

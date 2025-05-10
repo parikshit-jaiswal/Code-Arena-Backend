@@ -93,7 +93,7 @@ userSchema.methods.isPasswordCorrect = async function (
 
 userSchema.methods.generateAccessToken = function (): string {
   const secret = process.env.ACCESS_TOKEN_SECRET;
-  console.log(secret);
+  // console.log(secret);
   if (!secret) {
     throw new Error("ACCESS_TOKEN_SECRET is not defined");
   }
@@ -116,8 +116,8 @@ userSchema.methods.generateAccessToken = function (): string {
 
 userSchema.methods.generateRefreshToken = function (): string {
   const secret = process.env.REFRESH_TOKEN_SECRET;
-  console.log(parseInt(process.env.REFRESH_TOKEN_EXPIRY || "0"));
-  console.log(secret);
+  // console.log(parseInt(process.env.REFRESH_TOKEN_EXPIRY || "0"));
+  // console.log(secret);
   if (!secret) {
     throw new Error("REFRESH_TOKEN_SECRET is not defined");
   }

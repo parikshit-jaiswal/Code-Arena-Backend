@@ -346,7 +346,7 @@ const startContest = asyncHandler(async (req: Request, res: Response) => {
     }
   ])
 
-  console.log(updatedContest);
+  // console.log(updatedContest);
   
 
   res
