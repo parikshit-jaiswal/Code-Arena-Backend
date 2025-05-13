@@ -26,7 +26,7 @@ const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> =
     const CODE_EXEC_API_URL = process.env.CODE_EXEC_API_URL;
     if (!CODE_EXEC_API_URL) {
         return res.status(500).json(
-            new ApiResponse(500, null, "Judge0 API URL is not configured")
+            new ApiResponse(500, null, "Code execution API URL is not configured")
         );
     }
 
@@ -51,6 +51,62 @@ const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> =
     }
 });
 
+
+// i want to run all test cases and return the result and get the score according to the test cases passed or failed in percentage like if all passed then 100% and if some failed then some percentage
+const runAllTestCases = asyncHandler(async (req: Request, res: Response): Promise<any> => {
+    const {
+        code,
+        language,
+        testCases
+    }: {
+        code: string;
+        language: string;
+        testCases: { input: string; expectedOutput: string }[];
+    } = req.body;
+
+    if (!code || !language || !testCases || !Array.isArray(testCases)) {
+        return res.status(400).json(new ApiResponse(400, null, "Code, language, and testCases array are required"));
+    }
+
+    const CODE_EXEC_API_URL = process.env.CODE_EXEC_API_URL;
+    if (!CODE_EXEC_API_URL) {
+        return res.status(500).json(new ApiResponse(500, null, "Code execution API URL is not configured"));
+    }
+
+    try {
+        const response = await axios.post(
+            CODE_EXEC_API_URL,
+            { code, language, testCases },
+            { headers: { "Content-Type": "application/json" } }
+        );
+
+        // Calculate score based on test cases results
+        const results = response.data.testCases || [];
+        // console.log(results)
+        const totalTests = testCases.length;
+        let passedTests = 0;
+
+        results.forEach((result: any, index: number) => {
+            if (result.status === 'Accepted') {
+                passedTests++;
+            }
+        });
+
+        const score = (passedTests / totalTests) * 100;
+
+        return res.status(200).json(
+            new ApiResponse(200, {
+                score: score,
+                passedTests,
+                totalTests,
+                results: response.data.testCases,
+            }, "Code executed successfully")
+        );
+    } catch (error: any) {
+        console.log(error)
+        return res.status(500).json(new ApiResponse(500, null, "Failed to execute code"));
+    }
+});
 
 
 // const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> => {
@@ -176,4 +232,4 @@ const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> =
 //     }
 // });
 
-export { runCode };
+export { runCode, runAllTestCases };
