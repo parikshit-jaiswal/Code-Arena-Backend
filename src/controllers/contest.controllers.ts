@@ -356,4 +356,150 @@ const startContest = asyncHandler(async (req: Request, res: Response) => {
 
 })
 
-export { createContest, joinContest, getAllContests, addProblems, enterContest, startContest };
+const getContestById = asyncHandler(async (req: Request, res: Response) => {
+  const { contestId } = req.params;
+
+  if (!mongoose.isValidObjectId(contestId)) {
+    throw new ApiError(400, "Invalid Contest ID format");
+  }
+
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Use aggregate to get contest with populated problems
+  const contest = await Contest.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(contestId),
+      }
+    },
+    {
+      $lookup: {
+        from: "problems",
+        localField: "problems",
+        foreignField: "_id",
+        as: "problems",
+      },
+    }
+  ]);
+
+  if (!contest || contest.length === 0) {
+    throw new ApiError(404, "Contest not found");
+  }
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, contest[0], "Contest retrieved successfully"));
+});
+
+const editContest = asyncHandler(async (req: Request, res: Response) => {
+  const { contestId } = req.params;
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+
+  if (!mongoose.isValidObjectId(contestId)) {
+    throw new ApiError(400, "Invalid Contest ID format");
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Only admin can edit contests
+  if (user.role !== "admin") {
+    throw new ApiError(403, "You are not authorized to edit contests");
+  }
+
+  const {
+    title,
+    description,
+    startTime,
+    endTime,
+    duration,
+    isRated,
+    tags,
+    rules,
+  } = req.body;
+
+  // Find the contest
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+
+  // Check if user is the organizer or a moderator
+  const isAuthorized = 
+    contest.organizer.equals(userId) || 
+    contest.moderators.some((mod: mongoose.Types.ObjectId) => mod.equals(userId));
+
+  if (!isAuthorized && user.role !== "admin") {
+    throw new ApiError(403, "You are not authorized to edit this contest");
+  }
+
+  // Update contest fields
+  if (title) contest.title = title;
+  if (description !== undefined) contest.description = description;
+  if (startTime) contest.startTime = new Date(startTime);
+  if (endTime) contest.endTime = new Date(endTime);
+  if (duration) contest.duration = duration;
+  if (isRated !== undefined) contest.isRated = isRated;
+  if (tags) contest.tags = tags;
+  if (rules !== undefined) contest.rules = rules;
+
+  await contest.save();
+
+  // Get updated contest with populated problems
+  const updatedContest = await Contest.findById(contestId).populate("problems");
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, updatedContest, "Contest updated successfully"));
+});
+
+const deleteContest = asyncHandler(async (req: Request, res: Response) => {
+  const { contestId } = req.params;
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+
+  if (!mongoose.isValidObjectId(contestId)) {
+    throw new ApiError(400, "Invalid Contest ID format");
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Only admin can delete contests
+  if (user.role !== "admin") {
+    throw new ApiError(403, "You are not authorized to delete contests");
+  }
+
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+
+  // Delete the contest
+  await Contest.findByIdAndDelete(contestId);
+
+  // Update users who have created or participated in this contest
+  await User.updateMany(
+    { "contestsCreated.contestId": contestId },
+    { $pull: { contestsCreated: { contestId } } }
+  );
+
+  await User.updateMany(
+    { "contestsParticipated.contestId": contestId },
+    { $pull: { contestsParticipated: { contestId } } }
+  );
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Contest deleted successfully"));
+});
+
+export { createContest, joinContest, getAllContests, addProblems, enterContest, startContest, getContestById, editContest, deleteContest };
