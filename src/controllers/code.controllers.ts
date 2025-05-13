@@ -96,10 +96,10 @@ const runAllTestCases = asyncHandler(async (req: Request, res: Response): Promis
 
         return res.status(200).json(
             new ApiResponse(200, {
-                results: response.data.results,
                 score: score,
                 passedTests,
-                totalTests
+                totalTests,
+                results: response.data.testCases,
             }, "Code executed successfully")
         );
     } catch (error: any) {
