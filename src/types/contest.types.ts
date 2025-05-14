@@ -27,6 +27,11 @@ export interface IContest extends mongoose.Document {
     isRated: boolean;
     tags?: string[];
     rules?: string;
+    landingPageTitle?: string;
+    landingPageDescription?: string;
+    prizes?: string;
+    scoring?: string;
+    landingPageImage?: string;
     createdAt: Date;
     updatedAt: Date;
 }
