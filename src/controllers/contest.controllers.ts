@@ -502,4 +502,160 @@ const deleteContest = asyncHandler(async (req: Request, res: Response) => {
     .json(new ApiResponse(200, {}, "Contest deleted successfully"));
 });
 
-export { createContest, joinContest, getAllContests, addProblems, enterContest, startContest, getContestById, editContest, deleteContest };
+const updateContestDetails = asyncHandler(async (req: Request, res: Response) => {
+  const { contestId } = req.params;
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+
+  if (!mongoose.isValidObjectId(contestId)) {
+    throw new ApiError(400, "Invalid Contest ID format");
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Only admin, organizer, or moderator can update contest details
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+
+  const isAuthorized =
+    user.role === "admin" ||
+    contest.organizer.equals(userId) ||
+    contest.moderators.some((mod: mongoose.Types.ObjectId) => mod.equals(userId));
+
+  if (!isAuthorized) {
+    throw new ApiError(403, "You are not authorized to edit this contest");
+  }
+
+  const {
+    title,
+    description,
+    startTime,
+    endTime,
+    duration,
+    landingPageTitle,
+    landingPageDescription,
+    prizes,
+    rules,
+    scoring,
+    landingPageImage,
+  } = req.body;
+
+  if (title !== undefined) contest.title = title;
+  if (description !== undefined) contest.description = description;
+  if (startTime !== undefined) contest.startTime = new Date(startTime);
+  if (endTime !== undefined) contest.endTime = new Date(endTime);
+  if (duration !== undefined) contest.duration = duration;
+  if (landingPageTitle !== undefined) contest.landingPageTitle = landingPageTitle;
+  if (landingPageDescription !== undefined) contest.landingPageDescription = landingPageDescription;
+  if (prizes !== undefined) contest.prizes = prizes;
+  if (rules !== undefined) contest.rules = rules;
+  if (scoring !== undefined) contest.scoring = scoring;
+  if (landingPageImage !== undefined) contest.landingPageImage = landingPageImage;
+
+  await contest.save();
+
+  const updatedContest = await Contest.findById(contestId).populate("problems");
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, updatedContest, "Contest details updated successfully"));
+});
+
+const addModerators = asyncHandler(async (req: Request, res: Response) => {
+  //TODO:
+  //1. Get the contestId from the request params
+  //2. Get the userId from the request body
+  //3. Verify if the contest exists
+  //4. Verify if the user is the organizer or an admin
+  //4.4 Verify if the user has created the contest by matching the userId with the contest.organizer 
+  //4.5 search the user in the database by email or username
+  //5. Check if the user is already a moderator
+  //6. If not, add the userId to the moderators array of the contest
+  //5. Add the userId to the moderators array of the contest
+  //6. Add the contestId to the contestsModerated array of the user
+  //7. Return the updated contest and user as a response
+  const { contestId } = req.params;
+  const { email, username } = req.body; 
+  const requestingUser = req.user as IUser;
+
+  if (!requestingUser) {
+    throw new ApiError(404, "Requesting user not found");
+  }
+
+  if (!mongoose.isValidObjectId(contestId)) {
+    throw new ApiError(400, "Invalid Contest ID format");
+  }
+
+  // Find the contest
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+
+  // Only admin or organizer can add moderators
+  const isAuthorized =
+    requestingUser.role === "admin" &&
+    contest.organizer.equals(requestingUser._id as mongoose.Types.ObjectId);
+
+  if (!isAuthorized) {
+    throw new ApiError(403, "You are not authorized to add moderators");
+  }
+
+  // Find the user to be added as moderator
+  let userToAdd;
+  if (email) {
+    userToAdd = await User.findOne({ email });
+  } else if (username) {
+    userToAdd = await User.findOne({ username });
+  } else {
+    throw new ApiError(400, "Please provide an email or username of the user to add as moderator");
+  }
+
+  if (!userToAdd) {
+    throw new ApiError(404, "User to add as moderator not found");
+  }
+
+  // Prevent adding the organizer as a moderator
+  if (contest.organizer.equals(userToAdd._id as mongoose.Types.ObjectId)) {
+    throw new ApiError(409, "Organizer is already the contest owner");
+  }
+
+  // Check if already a moderator
+  const alreadyModerator = contest.moderators.some((mod: mongoose.Types.ObjectId) =>
+    mod.equals(userToAdd._id as mongoose.Types.ObjectId)
+  );
+  if (alreadyModerator) {
+    throw new ApiError(409, "User is already a moderator");
+  }
+
+  // Add to contest's moderators array
+  contest.moderators.push(userToAdd._id as mongoose.Types.ObjectId);
+  await contest.save();
+
+  // Add to user's contestsModerated array (if not already present)
+  const alreadyModerating = userToAdd.contestsModerated?.some(
+    (c: any) => c.contestId.equals(contest._id)
+  );
+  if (!alreadyModerating) {
+    userToAdd.contestsModerated = userToAdd.contestsModerated || [];
+    userToAdd.contestsModerated.push({
+      contestId: contest._id as mongoose.Types.ObjectId,
+      rank: 0,
+      score: 0,
+    });
+    await userToAdd.save();
+  }
+
+  const updatedContest = await Contest.findById(contestId).populate("problems");
+  const updatedUser = await User.findById(userToAdd._id);
+
+  res.status(200).json(
+    new ApiResponse(200, { contest: updatedContest, user: updatedUser }, "Moderator added successfully")
+  );
+});
+
+export { createContest, joinContest, getAllContests, addProblems, enterContest, startContest, getContestById, editContest, deleteContest, updateContestDetails, addModerators };

@@ -57,6 +57,11 @@ const userSchema = new Schema<IUser>(
         contestId: { type: Schema.Types.ObjectId, ref: "Contest" },
       },
     ],
+      contestsModerated: [
+      {
+        contestId: { type: Schema.Types.ObjectId, ref: "Contest" },
+      },
+    ],
   },
   { timestamps: true }
 );

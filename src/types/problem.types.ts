@@ -17,6 +17,8 @@ export interface IProblem extends mongoose.Document {
   explanation: string;
   difficulty: "easy" | "medium" | "hard";
   createdBy: mongoose.Types.ObjectId;
+  solution: mongoose.Types.ObjectId;
+  isSolved: boolean;
   tags: string[];
   testCases: ITestCase[];
   timeLimit: number; // in milliseconds

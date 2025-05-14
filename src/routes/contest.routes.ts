@@ -8,7 +8,9 @@ import {
   getAllContests, 
   getContestById, 
   joinContest, 
-  startContest 
+  startContest,
+  updateContestDetails,
+  addModerators 
 } from "../controllers/contest.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -23,5 +25,7 @@ router.route('/edit-contest/:contestId').put(verifyJWT, editContest);
 router.route('/delete-contest/:contestId').delete(verifyJWT, deleteContest);
 router.route('/enter-contest/:contestId').get(verifyJWT, enterContest);
 router.route('/start-contest/:contestId').get(verifyJWT, startContest);
-
+router.route('/update-contest/:contestId').put(verifyJWT, updateContestDetails);
+router.route('/getContestById/:contestId').get(verifyJWT, getContestById);
+router.route('/add-moderators/:contestId').post(verifyJWT, addModerators);
 export default router;

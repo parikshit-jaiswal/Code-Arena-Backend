@@ -89,6 +89,26 @@ const contestSchema = new Schema<IContest>(
       type: String,
       trim: true,
     },
+    landingPageTitle: {
+      type: String,
+      trim: true,
+    },
+    landingPageDescription: {
+      type: String,
+      trim: true,
+    },
+    prizes: {
+      type: String,
+      trim: true,
+    },
+    scoring: {
+      type: String,
+      trim: true,
+    },
+    landingPageImage: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true, // Automatically adds createdAt and updatedAt fields
