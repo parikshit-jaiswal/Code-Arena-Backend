@@ -180,9 +180,7 @@ const addProblems = asyncHandler(async (req: Request, res: Response) => {
     explanation,
     difficulty,
     tags,
-    testCaseInput,
-    testCaseOutput,
-    testCaseExplanation,
+    testCases,  // Change: Accept testCases directly as an array
     timeLimit,
     memoryLimit,
   } = req.body;
@@ -203,6 +201,12 @@ const addProblems = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(403, "You are not authorized to edit the contest");
   }
 
+  // Make sure testCases is an array with at least one item and required fields
+  if (!Array.isArray(testCases) || testCases.length === 0 || 
+      !testCases[0].input || !testCases[0].output) {
+    throw new ApiError(400, "Test cases must include at least one test case with input and output");
+  }
+
   const problem = await Problem.create({
     title,
     statement,
@@ -215,11 +219,7 @@ const addProblems = asyncHandler(async (req: Request, res: Response) => {
     difficulty,
     createdBy: userId,
     tags,
-    testCases: {
-      input: testCaseInput,
-      output: testCaseOutput,
-      explanation: testCaseExplanation,
-    },
+    testCases,  // Pass the entire array
     timeLimit,
     memoryLimit,
   });
@@ -658,4 +658,207 @@ const addModerators = asyncHandler(async (req: Request, res: Response) => {
   );
 });
 
-export { createContest, joinContest, getAllContests, addProblems, enterContest, startContest, getContestById, editContest, deleteContest, updateContestDetails, addModerators };
+const getContestProblems = asyncHandler(async (req: Request, res: Response) => {
+  const { contestId } = req.params;
+  
+  if (!mongoose.isValidObjectId(contestId)) {
+    throw new ApiError(400, "Invalid Contest ID format");
+  }
+  
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  
+  // Verify if contest exists
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+  
+  // Check if user is authorized (admin, organizer, or moderator)
+  const isAuthorized =
+    user.role === "admin" ||
+    contest.organizer.equals(userId) ||
+    contest.moderators.some((mod: mongoose.Types.ObjectId) => mod.equals(userId));
+    
+  if (!isAuthorized) {
+    throw new ApiError(403, "You are not authorized to access these problems");
+  }
+  
+  // Fetch problems with populated data
+  const problems = await Problem.find({
+    _id: { $in: contest.problems }
+  });
+  
+  res.status(200).json(
+    new ApiResponse(200, problems, "Problems fetched successfully")
+  );
+});
+
+const updateProblem = asyncHandler(async (req: Request, res: Response) => {
+  const { contestId, problemId } = req.params;
+  
+  if (!mongoose.isValidObjectId(contestId) || !mongoose.isValidObjectId(problemId)) {
+    throw new ApiError(400, "Invalid ID format");
+  }
+  
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  
+  // Check if contest exists and user has access
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+  
+  const isAuthorized =
+    user.role === "admin" ||
+    contest.organizer.equals(userId) ||
+    contest.moderators.some((mod: mongoose.Types.ObjectId) => mod.equals(userId));
+    
+  if (!isAuthorized) {
+    throw new ApiError(403, "You are not authorized to edit this problem");
+  }
+  
+  // Check if problem exists and belongs to the contest
+  const problemBelongsToContest = contest.problems.some(
+    (p: mongoose.Types.ObjectId) => p.equals(problemId)
+  );
+  
+  if (!problemBelongsToContest) {
+    throw new ApiError(404, "Problem not found in this contest");
+  }
+  
+  // Get data from request body
+  const {
+    title,
+    statement,
+    inputFormat,
+    outputFormat,
+    constraints,
+    sampleInput,
+    sampleOutput,
+    explanation,
+    difficulty,
+    tags,
+    testCaseInput,
+    testCaseOutput,
+    testCaseExplanation,
+    timeLimit,
+    memoryLimit,
+  } = req.body;
+  
+  // Find and update the problem
+  const problem = await Problem.findById(problemId);
+  if (!problem) {
+    throw new ApiError(404, "Problem not found");
+  }
+  
+  // Update fields if provided
+  if (title !== undefined) problem.title = title;
+  if (statement !== undefined) problem.statement = statement;
+  if (inputFormat !== undefined) problem.inputFormat = inputFormat;
+  if (outputFormat !== undefined) problem.outputFormat = outputFormat;
+  if (constraints !== undefined) problem.constraints = constraints;
+  if (sampleInput !== undefined) problem.sampleInput = sampleInput;
+  if (sampleOutput !== undefined) problem.sampleOutput = sampleOutput;
+  if (explanation !== undefined) problem.explanation = explanation;
+  if (difficulty !== undefined) problem.difficulty = difficulty;
+  if (tags !== undefined) problem.tags = tags;
+  
+  // Update test cases - THIS is the part that needs to be fixed
+  if (testCaseInput !== undefined || testCaseOutput !== undefined || testCaseExplanation !== undefined) {
+    problem.testCases = [{
+      input: testCaseInput || "",
+      output: testCaseOutput || "",
+      explanation: testCaseExplanation || "",
+    }];
+  }
+  
+  if (timeLimit !== undefined) problem.timeLimit = timeLimit;
+  if (memoryLimit !== undefined) problem.memoryLimit = memoryLimit;
+  
+  // Save updated problem
+  await problem.save();
+  
+  res.status(200).json(
+    new ApiResponse(200, problem, "Problem updated successfully")
+  );
+});
+
+const deleteProblem = asyncHandler(async (req: Request, res: Response) => {
+  const { contestId, problemId } = req.params;
+  
+  if (!mongoose.isValidObjectId(contestId) || !mongoose.isValidObjectId(problemId)) {
+    throw new ApiError(400, "Invalid ID format");
+  }
+  
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  
+  // Check if contest exists and user has access
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+  
+  const isAuthorized =
+    user.role === "admin" ||
+    contest.organizer.equals(userId) ||
+    contest.moderators.some((mod: mongoose.Types.ObjectId) => mod.equals(userId));
+    
+  if (!isAuthorized) {
+    throw new ApiError(403, "You are not authorized to delete this problem");
+  }
+  
+  // Check if problem exists and belongs to the contest
+  const problemBelongsToContest = contest.problems.some(
+    (p: mongoose.Types.ObjectId) => p.equals(problemId)
+  );
+  
+  if (!problemBelongsToContest) {
+    throw new ApiError(404, "Problem not found in this contest");
+  }
+  
+  // Remove problem from contest
+  contest.problems = contest.problems.filter(
+    (p: mongoose.Types.ObjectId) => !p.equals(problemId)
+  );
+  await contest.save();
+  
+  // Delete the problem
+  await Problem.findByIdAndDelete(problemId);
+  
+  res.status(200).json(
+    new ApiResponse(200, {}, "Problem deleted successfully")
+  );
+});
+
+// Update the export statement
+export { 
+  createContest, 
+  joinContest, 
+  getAllContests, 
+  addProblems, 
+  enterContest, 
+  startContest, 
+  getContestById, 
+  editContest, 
+  deleteContest, 
+  updateContestDetails, 
+  addModerators,
+  getContestProblems,
+  updateProblem,
+  deleteProblem
+};
