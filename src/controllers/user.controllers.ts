@@ -388,53 +388,150 @@ const getUserData = asyncHandler(async (req: Request, res: Response) => {
   const userId = (req as any).user._id;
 
   const user = await User.aggregate([
-    {
-      $match: {
-        _id: userId,
-      },
-    },
+    { $match: { _id: userId } },
+    // Preserve the original contestsParticipated array
+    { $addFields: { userContestsParticipated: "$contestsParticipated" } },
     {
       $lookup: {
-        from: "contests", 
-        localField: "contestsParticipated.contestId", 
+        from: "contests",
+        localField: "contestsParticipated.contestId",
         foreignField: "_id",
-        as: "contestsParticipated", 
-        pipeline: [
-          {
-            $lookup: {
-              from: "problems",
-              localField: "problems",
-              foreignField: "_id",
-              as: "problems",
-            },
-          },
-          {
-            $addFields: {
-              owner: {
-                $first: "$owner"
-              }
+        as: "contestsParticipated",
+      },
+    },
+    // Merge user's score and rank into each contestParticipated object
+    {
+      $addFields: {
+        contestsParticipated: {
+          $map: {
+            input: "$contestsParticipated",
+            as: "contest",
+            in: {
+              $mergeObjects: [
+                "$$contest",
+                {
+                  score: {
+                    $let: {
+                      vars: {
+                        userContest: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$userContestsParticipated",
+                                as: "uc",
+                                cond: { $eq: ["$$uc.contestId", "$$contest._id"] }
+                              }
+                            },
+                            0
+                          ]
+                        }
+                      },
+                      in: "$$userContest.score"
+                    }
+                  },
+                  rank: {
+                    $let: {
+                      vars: {
+                        userContest: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$userContestsParticipated",
+                                as: "uc",
+                                cond: { $eq: ["$$uc.contestId", "$$contest._id"] }
+                              }
+                            },
+                            0
+                          ]
+                        }
+                      },
+                      in: "$$userContest.rank"
+                    }
+                  },
+                  contestProblems: {
+                    $let: {
+                      vars: {
+                        userContest: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$userContestsParticipated",
+                                as: "uc",
+                                cond: { $eq: ["$$uc.contestId", "$$contest._id"] }
+                              }
+                            },
+                            0
+                          ]
+                        }
+                      },
+                      in: "$$userContest.contestProblems"
+                    }
+                  }
+                }
+              ]
             }
           }
-        ],
-      },
+        }
+      }
+    },
+    // Unwind contestsParticipated and contestProblems for lookup
+    { $unwind: { path: "$contestsParticipated", preserveNullAndEmptyArrays: true } },
+    { $unwind: { path: "$contestsParticipated.contestProblems", preserveNullAndEmptyArrays: true } },
+    // Lookup problem details
+    {
+      $lookup: {
+        from: "problems",
+        localField: "contestsParticipated.contestProblems.problemId",
+        foreignField: "_id",
+        as: "contestsParticipated.contestProblems.problemDetails"
+      }
+    },
+    // Flatten problemDetails array
+    {
+      $addFields: {
+        "contestsParticipated.contestProblems.problemDetails": {
+          $arrayElemAt: ["$contestsParticipated.contestProblems.problemDetails", 0]
+        }
+      }
+    },
+    // Group back contestProblems
+    {
+      $group: {
+        _id: {
+          userId: "$_id",
+          contestId: "$contestsParticipated._id"
+        },
+        doc: { $first: "$$ROOT" },
+        contest: { $first: "$contestsParticipated" },
+        contestProblems: { $push: "$contestsParticipated.contestProblems" }
+      }
     },
     {
       $addFields: {
-        totalScore: {
-          $sum: "$contestsParticipated.score", // Sum up the scores from all contests
-        },
-        totalAttempts: {
-          $sum: "$contestsParticipated.attempts", // Sum up the attempts from all contests
-        },
-        bestSubmissionTime: {
-          $min: "$contestsParticipated.bestSubmissionTime", // Find the minimum submission time
-        },
-      },
+        "contest.contestProblems": "$contestProblems"
+      }
+    },
+    // Group back contestsParticipated
+    {
+      $group: {
+        _id: "$doc._id",
+        doc: { $first: "$doc" },
+        contestsParticipated: { $push: "$contest" }
+      }
+    },
+    {
+      $addFields: {
+        "doc.contestsParticipated": "$contestsParticipated"
+      }
+    },
+    {
+      $replaceRoot: { newRoot: "$doc" }
     },
     {
       $project: {
-        password: 0, // Exclude sensitive fields
+        password: 0,
         refreshToken: 0,
+        userContestsParticipated: 0, // Hide the helper field
       },
     },
   ]);

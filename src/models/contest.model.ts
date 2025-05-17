@@ -64,6 +64,10 @@ const contestSchema = new Schema<IContest>(
       type: Number,
       default: 0,
     },
+    rank: {
+      type: Number,
+      default: 0,
+    },
     attempts: {
       type: Number,
       default: 0,

@@ -644,8 +644,6 @@ const addModerators = asyncHandler(async (req: Request, res: Response) => {
     userToAdd.contestsModerated = userToAdd.contestsModerated || [];
     userToAdd.contestsModerated.push({
       contestId: contest._id as mongoose.Types.ObjectId,
-      rank: 0,
-      score: 0,
     });
     await userToAdd.save();
   }
