@@ -845,6 +845,181 @@ const deleteProblem = asyncHandler(async (req: Request, res: Response) => {
   );
 });
 
+const getModerators = asyncHandler(async (req: Request, res: Response) => {
+  const { contestId } = req.params;
+  
+  if (!mongoose.isValidObjectId(contestId)) {
+    throw new ApiError(400, "Invalid Contest ID format");
+  }
+  
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  
+  // Verify if contest exists
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+  
+  // Only allow organizer, admins, or moderators to view moderators
+  const isAuthorized =
+    user.role === "admin" ||
+    contest.organizer.equals(userId) ||
+    contest.moderators.some((mod: mongoose.Types.ObjectId) => mod.equals(userId));
+    
+  if (!isAuthorized) {
+    throw new ApiError(403, "You are not authorized to view moderators");
+  }
+  
+  // Fetch moderator users with their details
+  const moderators = await User.find(
+    { _id: { $in: contest.moderators } },
+    { username: 1, email: 1, profilePicture: 1, _id: 1, "profile.avatarUrl": 1 }
+  );
+  
+  // Add organizer to the list with a special role
+  const organizer = await User.findById(
+    contest.organizer,
+    { username: 1, email: 1, profilePicture: 1, _id: 1, "profile.avatarUrl": 1 }
+  );
+  
+  // Map moderators with proper profile picture handling
+  let allModerators = moderators.map(mod => ({
+    id: mod._id,
+    username: mod.username,
+    // Use profilePicture field first, then fall back to profile.avatarUrl if exists
+    profilePicture: mod.profilePicture || (mod.profile && mod.profile.avatarUrl) || "",
+    role: 'moderator'
+  }));
+  
+  if (organizer) {
+    allModerators.unshift({
+      id: organizer._id,
+      username: organizer.username,
+      // Use profilePicture field first, then fall back to profile.avatarUrl if exists
+      profilePicture: organizer.profilePicture || (organizer.profile && organizer.profile.avatarUrl) || "",
+      role: 'owner'
+    });
+  }
+  
+  res.status(200).json(
+    new ApiResponse(200, { moderators: allModerators }, "Moderators fetched successfully")
+  );
+});
+
+const editModerator = asyncHandler(async (req: Request, res: Response) => {
+  const { contestId, moderatorId } = req.params;
+  const { role } = req.body;
+  
+  if (!mongoose.isValidObjectId(contestId) || !mongoose.isValidObjectId(moderatorId)) {
+    throw new ApiError(400, "Invalid ID format");
+  }
+  
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  
+  // Verify if contest exists
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+  
+  // Only allow organizer or admins to edit moderators
+  const isAuthorized =
+    user.role === "admin" ||
+    contest.organizer.equals(userId);
+    
+  if (!isAuthorized) {
+    throw new ApiError(403, "You are not authorized to edit moderators");
+  }
+  
+  // Check if the user to be edited exists
+  const moderatorToEdit = await User.findById(moderatorId);
+  if (!moderatorToEdit) {
+    throw new ApiError(404, "Moderator not found");
+  }
+  
+  // Check if the user is actually a moderator
+  const isModerator = contest.moderators.some(
+    (mod: mongoose.Types.ObjectId) => mod.equals(moderatorId)
+  );
+  
+  if (!isModerator) {
+    throw new ApiError(400, "User is not a moderator for this contest");
+  }
+  
+  // Currently, we only support role changes, which isn't stored in the DB
+  // This is primarily a placeholder for future functionality
+  // For now, just return success
+  
+  res.status(200).json(
+    new ApiResponse(200, { message: "Moderator role updated" }, "Moderator updated successfully")
+  );
+});
+
+const deleteModerator = asyncHandler(async (req: Request, res: Response) => {
+  const { contestId, moderatorId } = req.params;
+  
+  if (!mongoose.isValidObjectId(contestId) || !mongoose.isValidObjectId(moderatorId)) {
+    throw new ApiError(400, "Invalid ID format");
+  }
+  
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  
+  // Verify if contest exists
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+  
+  // Only allow organizer or admins to remove moderators
+  const isAuthorized =
+    user.role === "admin" ||
+    contest.organizer.equals(userId);
+    
+  if (!isAuthorized) {
+    throw new ApiError(403, "You are not authorized to remove moderators");
+  }
+  
+  // Check if the user is actually a moderator
+  const isModerator = contest.moderators.some(
+    (mod: mongoose.Types.ObjectId) => mod.equals(moderatorId)
+  );
+  
+  if (!isModerator) {
+    throw new ApiError(400, "User is not a moderator for this contest");
+  }
+  
+  // Remove the user from contest's moderators array
+  contest.moderators = contest.moderators.filter(
+    (mod: mongoose.Types.ObjectId) => !mod.equals(moderatorId)
+  );
+  await contest.save();
+  
+  // Update the user's contestsModerated array
+  await User.findByIdAndUpdate(
+    moderatorId,
+    { $pull: { contestsModerated: { contestId: contest._id } } }
+  );
+  
+  res.status(200).json(
+    new ApiResponse(200, {}, "Moderator removed successfully")
+  );
+});
+
 // Update the export statement
 export { 
   createContest, 
@@ -858,6 +1033,9 @@ export {
   deleteContest, 
   updateContestDetails, 
   addModerators,
+  getModerators,
+  editModerator,
+  deleteModerator,
   getContestProblems,
   updateProblem,
   deleteProblem

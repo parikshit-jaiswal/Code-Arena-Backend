@@ -13,7 +13,10 @@ import {
   addModerators,
   getContestProblems,
   updateProblem,
-  deleteProblem
+  deleteProblem,
+  getModerators,
+  editModerator,
+  deleteModerator
 } from "../controllers/contest.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -28,7 +31,7 @@ router.route('/edit-contest/:contestId').put(verifyJWT, editContest);
 router.route('/delete-contest/:contestId').delete(verifyJWT, deleteContest);
 router.route('/enter-contest/:contestId').get(verifyJWT, enterContest);
 router.route('/start-contest/:contestId').get(verifyJWT, startContest);
-router.route('/update-contest/:contestId').put(verifyJWT, updateContestDetails);
+router.route('/update-contest-details/:contestId').put(verifyJWT, updateContestDetails);
 router.route('/add-moderators/:contestId').post(verifyJWT, addModerators);
 
 // Contest problem management routes
@@ -36,5 +39,11 @@ router.route('/add-problems/:contestId').post(verifyJWT, addProblems);
 router.route('/get-problems/:contestId').get(verifyJWT, getContestProblems);
 router.route('/update-problem/:contestId/:problemId').put(verifyJWT, updateProblem);
 router.route('/delete-problem/:contestId/:problemId').delete(verifyJWT, deleteProblem);
+
+
+// Moderator management routes
+router.route('/moderators/:contestId').get(verifyJWT, getModerators);
+router.route('/moderators/:contestId/:moderatorId').put(verifyJWT, editModerator);
+router.route('/moderators/:contestId/:moderatorId').delete(verifyJWT, deleteModerator);
 
 export default router;

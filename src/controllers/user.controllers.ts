@@ -9,6 +9,7 @@ import jwt from "jsonwebtoken";
 import { sendOtpEmail } from "../utils/sendMail.js";
 import mongoose from "mongoose";
 import { verifyGoogleToken, getGoogleUser } from "../utils/googleAuth.js";
+import Contest from "../models/contest.model.js";
 
 const otpStore = new Map<
   string,
@@ -482,6 +483,58 @@ const googleLogin = asyncHandler(async (req: Request, res: Response) => {
     res.status(200).json(new ApiResponse(200, { user, accessToken, refreshToken }, message));
 });
 
+const getManageableContests = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+
+  if (!userId) {
+    throw new ApiError(401, "Authentication required");
+  }
+
+  // Find user
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Define fields to select - only include what's needed for the contests list
+  const contestFields = "title description startTime endTime organizer moderators createdAt";
+  
+  // Get contests where the user is an organizer
+  const organizedContests = await Contest.find({ organizer: userId })
+    .select(contestFields)
+    .sort({ createdAt: -1 });
+
+  // Get contests where the user is a moderator
+  const moderatedContests = await Contest.find({ 
+    moderators: { $in: [userId] } 
+  })
+  .select(contestFields)
+  .sort({ createdAt: -1 });
+
+  // If user is admin, get all contests
+  let allContests: any[] = [];
+  if (user.role === "admin") {
+    allContests = await Contest.find()
+      .select(contestFields)
+      .sort({ createdAt: -1 });
+  }
+
+  // Prepare response with role context for each contest
+  const managedContests = {
+    asOrganizer: organizedContests,
+    asModerator: moderatedContests,
+    asAdmin: user.role === "admin" ? allContests : []
+  };
+
+  res.status(200).json(
+    new ApiResponse(
+      200, 
+      managedContests, 
+      "Manageable contests retrieved successfully"
+    )
+  );
+});
+
 
 export { registerUser,
          loginUser, 
@@ -493,4 +546,5 @@ export { registerUser,
          verifyResetPasswordOTP, 
          updatePassword, 
          getUserData, 
-         googleLogin };
+         googleLogin,
+         getManageableContests };

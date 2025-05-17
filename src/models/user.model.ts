@@ -30,6 +30,10 @@ const userSchema = new Schema<IUser>(
       enum: ["admin", "participant"],
       default: "participant",
     },
+    profilePicture: {
+      type: String,
+      default: "",
+    },
     profile: {
       name: { type: String },
       institution: { type: String },
@@ -57,7 +61,7 @@ const userSchema = new Schema<IUser>(
         contestId: { type: Schema.Types.ObjectId, ref: "Contest" },
       },
     ],
-      contestsModerated: [
+    contestsModerated: [
       {
         contestId: { type: Schema.Types.ObjectId, ref: "Contest" },
       },

@@ -10,6 +10,7 @@ import {
   updatePassword,
   getUserData,
   googleLogin,
+  getManageableContests,
 } from "../controllers/user.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import {
@@ -31,5 +32,6 @@ router.route("/google").post(googleLogin);
 router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/refresh-token").post(refreshAccessToken);
 router.route("/get-user-data").get(verifyJWT, getUserData);
+router.get("/manageable-contests", verifyJWT, getManageableContests);
 
 export default router;
