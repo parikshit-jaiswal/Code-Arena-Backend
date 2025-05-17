@@ -8,6 +8,8 @@ export interface ITestCase {
 
 export interface IProblem extends mongoose.Document {
   title: string;
+  maxScore: number;
+  isSolved: boolean;
   statement: string;
   inputFormat: string;
   outputFormat: string;
@@ -18,7 +20,6 @@ export interface IProblem extends mongoose.Document {
   difficulty: "easy" | "medium" | "hard";
   createdBy: mongoose.Types.ObjectId;
   solution: mongoose.Types.ObjectId;
-  isSolved: boolean;
   tags: string[];
   testCases: ITestCase[];
   timeLimit: number; // in milliseconds
