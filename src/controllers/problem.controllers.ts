@@ -125,6 +125,4 @@ if (!contestEntry) {
 
   })
 
-// const getAllProblems = 
-
 export { submitSolution };
