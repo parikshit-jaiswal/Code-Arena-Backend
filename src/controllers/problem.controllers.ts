@@ -125,4 +125,32 @@ if (!contestEntry) {
 
   })
 
+const getProblem = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    
+    const userId = (req as any).user._id;
+    const { contestId, problemId } = req.params;
+    const contest = await Contest.findById(contestId);
+    if (!contest) {
+      throw new ApiError(404, "Contest not found");
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+    const isParticipant = contest.participants.some(
+      (p: any) => p.userId.toString() === userId.toString()
+    );
+    if (!isParticipant) {
+      throw new ApiError(403, "User is not a participant of the contest");
+    }
+    const problem = await Problem.findById(problemId);
+    if (!problem) {
+      throw new ApiError(404, "Problem not found");
+    }
+    res.status(200).json(
+      new ApiResponse(200, problem, "Problem fetched successfully")
+    );
+  })
+
 export { submitSolution };
