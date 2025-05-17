@@ -10,6 +10,7 @@ import { sendOtpEmail } from "../utils/sendMail.js";
 import mongoose from "mongoose";
 import { verifyGoogleToken, getGoogleUser } from "../utils/googleAuth.js";
 import Contest from "../models/contest.model.js";
+import cloudinary from '../config/cloudinary';
 
 const otpStore = new Map<
   string,
@@ -632,6 +633,78 @@ const getManageableContests = asyncHandler(async (req: Request, res: Response) =
   );
 });
 
+const updateProfilePicture = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id;
+  
+  if (!userId) {
+    throw new ApiError(401, "Authentication required");
+  }
+  
+  if (!req.file) {
+    throw new ApiError(400, "No image file provided");
+  }
+  
+  try {
+    // The file has already been uploaded to Cloudinary by the middleware
+    const imageUrl = (req.file as any).path || (req.file as Express.Multer.File & { path: string }).path;
+    
+    if (!imageUrl) {
+      throw new ApiError(500, "Failed to upload image");
+    }
+    
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+    
+    // If user already has a profile picture in Cloudinary, delete the old one
+    if (user.profilePicture && user.profilePicture.includes('cloudinary')) {
+      try {
+        // Extract the public ID from the Cloudinary URL
+        const publicId = user.profilePicture
+          .split('/')
+          .pop()
+          ?.split('.')[0];
+          
+        if (publicId) {
+          await cloudinary.uploader.destroy(`code-up-profile-pictures/${publicId}`);
+        }
+      } catch (err) {
+        console.error("Error deleting old profile picture:", err);
+        // Continue even if deletion fails
+      }
+    }
+    
+    // Update the user's profile picture URL
+    user.profilePicture = imageUrl;
+    await user.save();
+    
+    res.status(200).json(
+      new ApiResponse(
+        200, 
+        { profilePicture: imageUrl }, 
+        "Profile picture updated successfully"
+      )
+    );
+  } catch (error) {
+    console.error("Error updating profile picture:", error);
+    
+    // Clean up the uploaded file in case of error
+    if (req.file && (req.file as any).public_id) {
+      try {
+        await cloudinary.uploader.destroy((req.file as any).public_id);
+      } catch (err) {
+        console.error("Error deleting uploaded file after error:", err);
+      }
+    }
+    
+    throw new ApiError(
+      500, 
+      "Failed to update profile picture. Please try again."
+    );
+  }
+});
 
 export { registerUser,
          loginUser, 
@@ -644,4 +717,5 @@ export { registerUser,
          updatePassword, 
          getUserData, 
          googleLogin,
-         getManageableContests };
+         getManageableContests,
+         updateProfilePicture };
