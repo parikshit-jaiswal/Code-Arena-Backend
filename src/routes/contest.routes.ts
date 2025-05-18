@@ -17,9 +17,11 @@ import {
   getModerators,
   editModerator,
   deleteModerator,
-  getContestParticipants // Add this import
+  getContestParticipants, // Add this import
+  updateContestBackground
 } from "../controllers/contest.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { uploadContestBackground } from "../middlewares/upload.middleware.js";
 
 const router = Router();
 
@@ -49,5 +51,13 @@ router.route('/moderators/:contestId/:moderatorId').delete(verifyJWT, deleteMode
 
 // Add the new route for getting participants
 router.route('/:contestId/participants').get(verifyJWT, getContestParticipants);
+
+// Add the new route for updating contest background
+router.route('/background/:contestId')
+  .post(
+    verifyJWT, 
+    uploadContestBackground.single('backgroundImage'),
+    updateContestBackground
+  );
 
 export default router;

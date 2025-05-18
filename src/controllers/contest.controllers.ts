@@ -8,6 +8,8 @@ import { IUser } from "../types/user.types.js";
 import User from "../models/user.model.js";
 import mongoose from "mongoose";
 import Problem from "../models/problem.model.js";
+import cloudinary from "../config/cloudinary.js";
+
 
 const createContest = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -1091,6 +1093,97 @@ const getContestParticipants = asyncHandler(async (req: Request, res: Response) 
   );
 });
 
+const updateContestBackground = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id;
+  
+  if (!userId) {
+    throw new ApiError(401, "Authentication required");
+  }
+  
+  const { contestId } = req.params;
+  
+  if (!mongoose.isValidObjectId(contestId)) {
+    throw new ApiError(400, "Invalid Contest ID format");
+  }
+  
+  if (!req.file) {
+    throw new ApiError(400, "No background image provided");
+  }
+  
+  try {
+    // Check if contest exists
+    const contest = await Contest.findById(contestId);
+    if (!contest) {
+      throw new ApiError(404, "Contest not found");
+    }
+    
+    // Check if user is authorized (admin, organizer, or moderator)
+    const userRole = req.user?.role;
+    const isAdmin = userRole === "admin";
+    const isOrganizer = contest.organizer.toString() === userId.toString();
+    const isModerator = contest.moderators?.some(
+      (modId) => modId.toString() === userId.toString()
+    );
+    
+    if (!isAdmin && !isOrganizer && !isModerator) {
+      throw new ApiError(403, "You are not authorized to update this contest");
+    }
+    
+    // The file has already been uploaded to Cloudinary by the middleware
+    const imageUrl = (req.file as any).path || (req.file as Express.Multer.File & { path: string }).path;
+    
+    if (!imageUrl) {
+      throw new ApiError(500, "Failed to upload background image");
+    }
+    
+    // If contest already has a background image in Cloudinary, delete the old one
+    if (contest.backgroundImage && contest.backgroundImage.includes('cloudinary')) {
+      try {
+        // Extract the public ID from the Cloudinary URL
+        const publicId = contest.backgroundImage
+          .split('/')
+          .pop()
+          ?.split('.')[0];
+          
+        if (publicId) {
+          await cloudinary.uploader.destroy(`code-up-contest-backgrounds/${publicId}`);
+        }
+      } catch (err) {
+        console.error("Error deleting old background image:", err);
+        // Continue even if deletion fails
+      }
+    }
+    
+    // Update the contest with the new background URL
+    contest.backgroundImage = imageUrl;
+    await contest.save();
+    
+    res.status(200).json(
+      new ApiResponse(
+        200,
+        { backgroundImage: imageUrl },
+        "Contest background updated successfully"
+      )
+    );
+  } catch (error) {
+    console.error("Error updating contest background:", error);
+    
+    // Clean up the uploaded file in case of error
+    if (req.file && (req.file as any).public_id) {
+      try {
+        await cloudinary.uploader.destroy((req.file as any).public_id);
+      } catch (err) {
+        console.error("Error deleting uploaded file after error:", err);
+      }
+    }
+    
+    throw new ApiError(
+      500, 
+      "Failed to update contest background. Please try again."
+    );
+  }
+});
+
 // Update the export statement
 export { 
   createContest, 
@@ -1110,5 +1203,6 @@ export {
   getContestProblems,
   updateProblem,
   deleteProblem,
-  getContestParticipants
+  getContestParticipants,
+  updateContestBackground 
 };

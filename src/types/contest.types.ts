@@ -33,6 +33,7 @@ export interface IContest extends mongoose.Document {
     prizes?: string;
     scoring?: string;
     landingPageImage?: string;
+    backgroundImage?: string; // New field added
     createdAt: Date;
     updatedAt: Date;
 }

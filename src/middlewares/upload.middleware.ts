@@ -1,13 +1,12 @@
 import multer from 'multer';
 import path from 'path';
 import { Request } from 'express';
-import { Multer } from 'multer';
 import { ApiError } from '../utils/ApiError';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import cloudinary from '../config/cloudinary';
 
 // Define file size limits
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 2MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 // Configure Cloudinary storage for profile pictures
 const profilePictureStorage = new CloudinaryStorage({
@@ -20,6 +19,21 @@ const profilePictureStorage = new CloudinaryStorage({
       const userId = req.user?._id;
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
       return `user-${userId}-${uniqueSuffix}`;
+    },
+  } as any,
+});
+
+// Configure Cloudinary storage for contest backgrounds
+const contestBackgroundStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'code-up-contest-backgrounds',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [{ width: 1920, height: 1080, crop: 'limit' }],
+    public_id: (req: Request, file: Express.Multer.File) => {
+      const contestId = req.params?.contestId;
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      return `contest-${contestId}-${uniqueSuffix}`;
     },
   } as any,
 });
@@ -42,6 +56,15 @@ const fileFilter = (
 // Create multer upload instance for profile pictures
 export const uploadProfilePicture = multer({
   storage: profilePictureStorage,
+  limits: {
+    fileSize: MAX_FILE_SIZE
+  },
+  fileFilter: fileFilter
+});
+
+// Create multer upload instance for contest backgrounds
+export const uploadContestBackground = multer({
+  storage: contestBackgroundStorage,
   limits: {
     fileSize: MAX_FILE_SIZE
   },
