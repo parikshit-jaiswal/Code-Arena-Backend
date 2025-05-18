@@ -1018,6 +1018,79 @@ const deleteModerator = asyncHandler(async (req: Request, res: Response) => {
   );
 });
 
+const getContestParticipants = asyncHandler(async (req: Request, res: Response) => {
+  const { contestId } = req.params;
+  
+  if (!mongoose.isValidObjectId(contestId)) {
+    throw new ApiError(400, "Invalid Contest ID format");
+  }
+  
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  
+  // Verify if contest exists
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+  
+  // Check if user is authorized (admin, organizer, moderator, or participant)
+  const isAuthorized =
+    user.role === "admin" ||
+    contest.organizer.equals(userId) ||
+    contest.moderators.some((mod: mongoose.Types.ObjectId) => mod.equals(userId)) ||
+    contest.participants.some((p) => p.userId.equals(userId));
+    
+  if (!isAuthorized) {
+    throw new ApiError(403, "You are not authorized to view participants");
+  }
+  
+  // Get participant details with lookup
+  const participantUsers = await User.aggregate([
+    {
+      $match: {
+        _id: { $in: contest.participants.map(p => p.userId) }
+      }
+    },
+    {
+      $project: {
+        id: "$_id",
+        username: 1,
+        profilePicture: 1,
+        "profile.avatarUrl": 1,
+        lastActive: 1,
+        _id: 0
+      }
+    }
+  ]);
+  
+  // Combine participant data with join timestamps
+  const enrichedParticipants = participantUsers.map(user => {
+    const participantData = contest.participants.find(p => 
+      p.userId.equals(user.id)
+    );
+    
+    return {
+      id: user.id,
+      username: user.username,
+      signupDate: participantData?.joinedAt,
+      // Consider a user logged in if they've been active in the last 15 minutes
+      lastLogin: user.lastActive && 
+        (new Date().getTime() - new Date(user.lastActive).getTime() < 15 * 60 * 1000) 
+        ? user.lastActive : null,
+      profilePicture: user.profilePicture || (user.profile && user.profile.avatarUrl) || ""
+    };
+  });
+  
+  res.status(200).json(
+    new ApiResponse(200, enrichedParticipants, "Participants fetched successfully")
+  );
+});
+
 // Update the export statement
 export { 
   createContest, 
@@ -1036,5 +1109,6 @@ export {
   deleteModerator,
   getContestProblems,
   updateProblem,
-  deleteProblem
+  deleteProblem,
+  getContestParticipants
 };

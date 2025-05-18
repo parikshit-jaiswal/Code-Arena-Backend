@@ -16,7 +16,8 @@ import {
   deleteProblem,
   getModerators,
   editModerator,
-  deleteModerator
+  deleteModerator,
+  getContestParticipants // Add this import
 } from "../controllers/contest.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -45,5 +46,8 @@ router.route('/delete-problem/:contestId/:problemId').delete(verifyJWT, deletePr
 router.route('/moderators/:contestId').get(verifyJWT, getModerators);
 router.route('/moderators/:contestId/:moderatorId').put(verifyJWT, editModerator);
 router.route('/moderators/:contestId/:moderatorId').delete(verifyJWT, deleteModerator);
+
+// Add the new route for getting participants
+router.route('/:contestId/participants').get(verifyJWT, getContestParticipants);
 
 export default router;

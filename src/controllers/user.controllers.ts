@@ -706,16 +706,92 @@ const updateProfilePicture = asyncHandler(async (req: Request, res: Response) =>
   }
 });
 
-export { registerUser,
-         loginUser, 
-         verifyLoginOTP, 
-         logoutUser, 
-         refreshAccessToken, 
-         changePassword, 
-         forgetPassword, 
-         verifyResetPasswordOTP, 
-         updatePassword, 
-         getUserData, 
-         googleLogin,
-         getManageableContests,
-         updateProfilePicture };
+const getUserById = asyncHandler(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  
+  if (!mongoose.isValidObjectId(userId)) {
+    throw new ApiError(400, "Invalid User ID format");
+  }
+  
+  const requesterId = req.user?._id as mongoose.Types.ObjectId;
+  const requester = await User.findById(requesterId);
+  
+  if (!requester) {
+    throw new ApiError(404, "Requester not found");
+  }
+  
+  // Find the requested user with basic info
+  const user = await User.findById(userId).select(
+    "-password -refreshToken"
+  );
+  
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  
+  // For admins and contest organizers, provide more detailed information
+  // For regular users, provide limited information
+  let userData;
+  
+  if (requester.role === "admin") {
+    // Admin users get full profile info except sensitive data
+    userData = {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      profilePicture: user.profilePicture,
+      profile: user.profile,
+      rating: user.rating,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      // Include participation data but filter out unnecessary details
+      contestsParticipated: user.contestsParticipated?.map(contest => ({
+        contestId: contest.contestId,
+        rank: contest.rank,
+        score: contest.score
+      }))
+    };
+  } else {
+    // Regular users see limited profile information
+    userData = {
+      _id: user._id,
+      username: user.username,
+      role: user.role,
+      profilePicture: user.profilePicture,
+      profile: {
+        name: user.profile?.name,
+        institution: user.profile?.institution,
+        country: user.profile?.country,
+        bio: user.profile?.bio
+      },
+      rating: user.rating,
+      createdAt: user.createdAt
+    };
+  }
+  
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      userData,
+      "User profile retrieved successfully"
+    )
+  );
+});
+
+export { 
+  registerUser,
+  loginUser, 
+  verifyLoginOTP, 
+  logoutUser, 
+  refreshAccessToken, 
+  changePassword, 
+  forgetPassword, 
+  verifyResetPasswordOTP, 
+  updatePassword, 
+  getUserData, 
+  googleLogin,
+  getManageableContests,
+  updateProfilePicture,
+  getUserById 
+};
