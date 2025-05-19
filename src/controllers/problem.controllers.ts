@@ -153,4 +153,4 @@ const getProblem = asyncHandler(
     );
   })
 
-export { submitSolution };
+export { submitSolution, getProblem };
