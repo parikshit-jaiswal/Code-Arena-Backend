@@ -12,6 +12,7 @@ import {
   googleLogin,
   getManageableContests,
   updateProfilePicture,
+  getUserById, // Add this import
 } from "../controllers/user.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import {
@@ -22,6 +23,7 @@ import { uploadProfilePicture } from "../middlewares/upload.middleware";
 
 const router = Router();
 
+// Keep existing routes
 router.route("/register").post(registerUser);
 router.route("/login").post(loginUser);
 router.route("/v").post(verifyLoginOTP);
@@ -42,5 +44,9 @@ router
     uploadProfilePicture.single("profilePicture"),
     updateProfilePicture
   );
+
+// Add new route to get user by ID
+router.route("/current").get(verifyJWT, getUserData); // New route for current user
+router.route("/:userId").get(verifyJWT, getUserById); // Route for getting user by ID
 
 export default router;
