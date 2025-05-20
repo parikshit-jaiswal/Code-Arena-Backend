@@ -15,14 +15,14 @@ const submitSolution = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     //TODO:
     //1. get contestId and ProblemId from the params
-    //2. find user and validate if it is a participant of the contest or not 
-    //3. get all the solution details from the req body 
-    //4. update problem score to take only the max value to be stored in problem score which is inside the contestParticipated array 
-    //5. update the contest score to be the sum of all the problems score 
-    //6. return the response 
+    //2. find user and validate if it is a participant of the contest or not
+    //3. get all the solution details from the req body
+    //4. update problem score to take only the max value to be stored in problem score which is inside the contestParticipated array
+    //5. update the contest score to be the sum of all the problems score
+    //6. return the response
     //7. update the user rating based on the contest score
     //8. update the user rank based on the contest score
-    const { contestId, problemId} = req.params;
+    const { contestId, problemId } = req.params;
 
     const contest = await Contest.findById(contestId);
     const problem = await Problem.findById(problemId);
@@ -48,8 +48,22 @@ const submitSolution = asyncHandler(
     if (!isParticipant) {
       throw new ApiError(403, "User is not a participant of the contest");
     }
-    const { score, solutionCode, languageUsed, timeOccupied, memoryOccupied, timeGivenOnSolution } = req.body;
-    if (!score || !solutionCode || !languageUsed || !timeOccupied || !memoryOccupied || !timeGivenOnSolution) {
+    const {
+      score,
+      solutionCode,
+      languageUsed,
+      timeOccupied,
+      memoryOccupied,
+      timeGivenOnSolution,
+    } = req.body;
+    if (
+      !score ||
+      !solutionCode ||
+      !languageUsed ||
+      !timeOccupied ||
+      !memoryOccupied ||
+      !timeGivenOnSolution
+    ) {
       throw new ApiError(400, "All fields are required");
     }
     const solution = await Solution.create({
@@ -67,17 +81,17 @@ const submitSolution = asyncHandler(
       throw new ApiError(500, "Solution not created");
     }
 
-if (!Array.isArray(user.contestsParticipated)) {
-  throw new ApiError(400, "User contestsParticipated is not a valid array");
-}
+    if (!Array.isArray(user.contestsParticipated)) {
+      throw new ApiError(400, "User contestsParticipated is not a valid array");
+    }
 
-const contestEntry = user.contestsParticipated.find(
-  (c: any) => c?.contestId?.toString() === contestId
-);
+    const contestEntry = user.contestsParticipated.find(
+      (c: any) => c?.contestId?.toString() === contestId
+    );
 
-if (!contestEntry) {
-  throw new ApiError(400, "User has not participated in this contest");
-}
+    if (!contestEntry) {
+      throw new ApiError(400, "User has not participated in this contest");
+    }
 
     // Ensure contestProblems is always an array
     if (!Array.isArray(contestEntry.contestProblems)) {
@@ -86,13 +100,15 @@ if (!contestEntry) {
 
     // Find the contestProblem entry for this problem
     let problemEntry = contestEntry.contestProblems.find(
-      (p: any) =>
-        p &&
-        p.problemId &&
-        p.problemId.toString() === problemId
+      (p: any) => p && p.problemId && p.problemId.toString() === problemId
     );
 
-    const subStatus: "correct" | "wrong" | "partially correct" = score === problem.maxScore ? "correct" : (score > 0 ? "partially correct" : "wrong");
+    const subStatus: "correct" | "wrong" | "partially correct" =
+      score === problem.maxScore
+        ? "correct"
+        : score > 0
+          ? "partially correct"
+          : "wrong";
 
     if (!problemEntry) {
       // If not present, push a new entry
@@ -119,15 +135,20 @@ if (!contestEntry) {
 
     await user.save();
 
-    res.status(201).json(
-      new ApiResponse(201, { solution, user }, "Solution submitted and scores updated")
-    );
-
-  })
+    res
+      .status(201)
+      .json(
+        new ApiResponse(
+          201,
+          { solution, user },
+          "Solution submitted and scores updated"
+        )
+      );
+  }
+);
 
 const getProblem = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    
     const userId = (req as any).user._id;
     const { contestId, problemId } = req.params;
     const contest = await Contest.findById(contestId);
@@ -148,9 +169,10 @@ const getProblem = asyncHandler(
     if (!problem) {
       throw new ApiError(404, "Problem not found");
     }
-    res.status(200).json(
-      new ApiResponse(200, problem, "Problem fetched successfully")
-    );
-  })
+    res
+      .status(200)
+      .json(new ApiResponse(200, problem, "Problem fetched successfully"));
+  }
+);
 
 export { submitSolution, getProblem };
