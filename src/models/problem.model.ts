@@ -11,6 +11,11 @@ const problemSchema = new Schema({
         type: Boolean,
         default: false  
     },
+    maxScore: {
+        type: Number,
+        required: true,
+        default: 0
+    },
     solution: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Solution",

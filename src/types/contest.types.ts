@@ -21,6 +21,7 @@ export interface IContest extends mongoose.Document {
     participants: IParticipant[];
     submissions: ISubmission[];
     score?: number;
+    rank?: number;
     attempts?: number;
     bestSubmissionTime?: number; // in seconds or milliseconds
     totalScore?: number;
@@ -32,6 +33,7 @@ export interface IContest extends mongoose.Document {
     prizes?: string;
     scoring?: string;
     landingPageImage?: string;
+    backgroundImage?: string; // New field added
     createdAt: Date;
     updatedAt: Date;
 }

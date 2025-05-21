@@ -7,6 +7,7 @@ import codeRouter from './routes/code.routes.js'
 import adminRouter from './routes/admin.routes.js'
 import contestRouter from './routes/contest.routes.js'
 import problemRouter from './routes/problem.routes.js'
+import userRouter from "./routes/user.routes.js";
 const app = express()
 
 app.use(cors({
@@ -26,7 +27,7 @@ app.use('/api/v1/code', codeRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/contest', contestRouter);
 app.use('/api/v1/problem', problemRouter);
-
+app.use("/api/v1/user", userRouter);
 
 
 export { app };
