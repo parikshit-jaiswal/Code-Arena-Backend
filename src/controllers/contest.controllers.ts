@@ -8,6 +8,8 @@ import { IUser } from "../types/user.types.js";
 import User from "../models/user.model.js";
 import mongoose from "mongoose";
 import Problem from "../models/problem.model.js";
+import cloudinary from "../config/cloudinary.js";
+
 
 const createContest = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -1018,6 +1020,170 @@ const deleteModerator = asyncHandler(async (req: Request, res: Response) => {
   );
 });
 
+const getContestParticipants = asyncHandler(async (req: Request, res: Response) => {
+  const { contestId } = req.params;
+  
+  if (!mongoose.isValidObjectId(contestId)) {
+    throw new ApiError(400, "Invalid Contest ID format");
+  }
+  
+  const userId = req.user?._id as mongoose.Types.ObjectId;
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  
+  // Verify if contest exists
+  const contest = await Contest.findById(contestId);
+  if (!contest) {
+    throw new ApiError(404, "Contest not found");
+  }
+  
+  // Check if user is authorized (admin, organizer, moderator, or participant)
+  const isAuthorized =
+    user.role === "admin" ||
+    contest.organizer.equals(userId) ||
+    contest.moderators.some((mod: mongoose.Types.ObjectId) => mod.equals(userId)) ||
+    contest.participants.some((p) => p.userId.equals(userId));
+    
+  if (!isAuthorized) {
+    throw new ApiError(403, "You are not authorized to view participants");
+  }
+  
+  // Get participant details with lookup
+  const participantUsers = await User.aggregate([
+    {
+      $match: {
+        _id: { $in: contest.participants.map(p => p.userId) }
+      }
+    },
+    {
+      $project: {
+        id: "$_id",
+        username: 1,
+        profilePicture: 1,
+        "profile.avatarUrl": 1,
+        lastActive: 1,
+        _id: 0
+      }
+    }
+  ]);
+  
+  // Combine participant data with join timestamps
+  const enrichedParticipants = participantUsers.map(user => {
+    const participantData = contest.participants.find(p => 
+      p.userId.equals(user.id)
+    );
+    
+    return {
+      id: user.id,
+      username: user.username,
+      signupDate: participantData?.joinedAt,
+      // Consider a user logged in if they've been active in the last 15 minutes
+      lastLogin: user.lastActive && 
+        (new Date().getTime() - new Date(user.lastActive).getTime() < 15 * 60 * 1000) 
+        ? user.lastActive : null,
+      profilePicture: user.profilePicture || (user.profile && user.profile.avatarUrl) || ""
+    };
+  });
+  
+  res.status(200).json(
+    new ApiResponse(200, enrichedParticipants, "Participants fetched successfully")
+  );
+});
+
+const updateContestBackground = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id;
+  
+  if (!userId) {
+    throw new ApiError(401, "Authentication required");
+  }
+  
+  const { contestId } = req.params;
+  
+  if (!mongoose.isValidObjectId(contestId)) {
+    throw new ApiError(400, "Invalid Contest ID format");
+  }
+  
+  if (!req.file) {
+    throw new ApiError(400, "No background image provided");
+  }
+  
+  try {
+    // Check if contest exists
+    const contest = await Contest.findById(contestId);
+    if (!contest) {
+      throw new ApiError(404, "Contest not found");
+    }
+    
+    // Check if user is authorized (admin, organizer, or moderator)
+    const userRole = req.user?.role;
+    const isAdmin = userRole === "admin";
+    const isOrganizer = contest.organizer.toString() === userId.toString();
+    const isModerator = contest.moderators?.some(
+      (modId) => modId.toString() === userId.toString()
+    );
+    
+    if (!isAdmin && !isOrganizer && !isModerator) {
+      throw new ApiError(403, "You are not authorized to update this contest");
+    }
+    
+    // The file has already been uploaded to Cloudinary by the middleware
+    const imageUrl = (req.file as any).path || (req.file as Express.Multer.File & { path: string }).path;
+    
+    if (!imageUrl) {
+      throw new ApiError(500, "Failed to upload background image");
+    }
+    
+    // If contest already has a background image in Cloudinary, delete the old one
+    if (contest.backgroundImage && contest.backgroundImage.includes('cloudinary')) {
+      try {
+        // Extract the public ID from the Cloudinary URL
+        const publicId = contest.backgroundImage
+          .split('/')
+          .pop()
+          ?.split('.')[0];
+          
+        if (publicId) {
+          await cloudinary.uploader.destroy(`code-up-contest-backgrounds/${publicId}`);
+        }
+      } catch (err) {
+        console.error("Error deleting old background image:", err);
+        // Continue even if deletion fails
+      }
+    }
+    
+    // Update the contest with the new background URL
+    contest.backgroundImage = imageUrl;
+    await contest.save();
+    
+    res.status(200).json(
+      new ApiResponse(
+        200,
+        { backgroundImage: imageUrl },
+        "Contest background updated successfully"
+      )
+    );
+  } catch (error) {
+    console.error("Error updating contest background:", error);
+    
+    // Clean up the uploaded file in case of error
+    if (req.file && (req.file as any).public_id) {
+      try {
+        await cloudinary.uploader.destroy((req.file as any).public_id);
+      } catch (err) {
+        console.error("Error deleting uploaded file after error:", err);
+      }
+    }
+    
+    throw new ApiError(
+      500, 
+      "Failed to update contest background. Please try again."
+    );
+  }
+});
+
 // Update the export statement
 export { 
   createContest, 
@@ -1036,5 +1202,7 @@ export {
   deleteModerator,
   getContestProblems,
   updateProblem,
-  deleteProblem
+  deleteProblem,
+  getContestParticipants,
+  updateContestBackground 
 };

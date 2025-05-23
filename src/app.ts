@@ -10,6 +10,7 @@ import problemRouter from "./routes/problem.routes.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 
+import userRouter from "./routes/user.routes.js";
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -42,11 +43,14 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
 
-app.use("/api/v1", testRouter);
-app.use("/api/v1/auth", authRouter);
-app.use("/api/v1/code", codeRouter);
-app.use("/api/v1/admin", adminRouter);
-app.use("/api/v1/contest", contestRouter);
-app.use("/api/v1/problem", problemRouter);
+
+app.use('/api/v1', testRouter);
+app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/code', codeRouter);
+app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/contest', contestRouter);
+app.use('/api/v1/problem', problemRouter);
+app.use("/api/v1/user", userRouter);
+
 
 export { app, io, httpServer };

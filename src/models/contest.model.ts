@@ -113,6 +113,10 @@ const contestSchema = new Schema<IContest>(
       type: String,
       trim: true,
     },
+    backgroundImage: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true, // Automatically adds createdAt and updatedAt fields
