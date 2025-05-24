@@ -29,7 +29,7 @@ io.on("connection", (socket) => {
   // ...
 });
 
-httpServer.listen(3000);
+httpServer.listen(3030);
 
 app.use(
   cors({

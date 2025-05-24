@@ -56,16 +56,25 @@ const submitSolution = asyncHandler(
       memoryOccupied,
       timeGivenOnSolution,
     } = req.body;
-    if (
-      !score ||
-      !solutionCode ||
-      !languageUsed ||
-      !timeOccupied ||
-      !memoryOccupied ||
-      !timeGivenOnSolution
-    ) {
-      throw new ApiError(400, "All fields are required");
+    if (!score) {
+      throw new ApiError(400, "Score is required");
     }
+    if (!solutionCode) {
+      throw new ApiError(400, "Solution code is required");
+    }
+
+    if (!languageUsed) {
+      throw new ApiError(400, "Language Used is required");
+    }
+    // if (!timeOccupied) {
+    //   throw new ApiError(400, "Time Occupied is required");
+    // }
+    // if (memoryOccupied === undefined || memoryOccupied === null) {
+    //   throw new ApiError(400, "Memory Occupied is required");
+    // }
+    // if (!timeGivenOnSolution) {
+    //   throw new ApiError(400, "Time Given On Solution is required");
+    // }
     const solution = await Solution.create({
       userId,
       contestId,
@@ -138,11 +147,7 @@ const submitSolution = asyncHandler(
     res
       .status(201)
       .json(
-        new ApiResponse(
-          201,
-          { solution, user },
-          "Solution submitted and scores updated"
-        )
+        new ApiResponse(201, { user }, "Solution submitted and scores updated")
       );
   }
 );
