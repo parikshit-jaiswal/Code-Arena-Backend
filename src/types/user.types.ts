@@ -59,6 +59,7 @@ export interface IUser extends mongoose.Document, IUserMethods {
     username: string;
     email: string;
     password: string;
+    online: boolean;
     role: 'admin' | 'participant';
     profilePicture?: string; // Add this line for the profile picture field
     profile?: IProfile;

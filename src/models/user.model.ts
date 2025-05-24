@@ -22,6 +22,10 @@ const userSchema = new Schema<IUser>(
     password: {
       type: String,
     },
+    online: {
+      type: Boolean,
+      default: false,
+    },
     followers: [
       {
         userId: { type: Schema.Types.ObjectId, ref: "User" },

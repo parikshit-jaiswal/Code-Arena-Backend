@@ -1,23 +1,46 @@
-import express, { urlencoded } from 'express'
-import cookieParser from 'cookie-parser';
+import express, { urlencoded } from "express";
+import cookieParser from "cookie-parser";
 import cors from "cors";
-import testRouter from './routes/test.routes.js'
-import authRouter from './routes/user.routes.js'
-import codeRouter from './routes/code.routes.js'
-import adminRouter from './routes/admin.routes.js'
-import contestRouter from './routes/contest.routes.js'
-import problemRouter from './routes/problem.routes.js'
+import testRouter from "./routes/test.routes.js";
+import authRouter from "./routes/user.routes.js";
+import codeRouter from "./routes/code.routes.js";
+import adminRouter from "./routes/admin.routes.js";
+import contestRouter from "./routes/contest.routes.js";
+import problemRouter from "./routes/problem.routes.js";
+import { createServer } from "http";
+import { Server } from "socket.io";
+
 import userRouter from "./routes/user.routes.js";
-const app = express()
-
-app.use(cors({
+const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
     origin: process.env.CORS_ORIGIN,
-    credentials: true
-}))
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000,
+    skipMiddlewares: false,
+  },
+});
 
-app.use(express.json({ limit: "16kb" }))
-app.use(express.urlencoded({ extended: true, limit: "16kb" }))
-app.use(express.static("public"))
+io.on("connection", (socket) => {
+  // ...
+});
+
+httpServer.listen(3000);
+
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN,
+    credentials: true,
+  })
+);
+
+app.use(express.json({ limit: "16kb" }));
+app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+app.use(express.static("public"));
 app.use(cookieParser());
 
 
@@ -30,4 +53,4 @@ app.use('/api/v1/problem', problemRouter);
 app.use("/api/v1/user", userRouter);
 
 
-export { app };
+export { app, io, httpServer };
