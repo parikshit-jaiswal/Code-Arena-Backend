@@ -50,12 +50,13 @@ io.use(async (socket, next) => {
     socket.data.user = user;
     next();
   } catch (err) {
+    console.error("Socket middleware error:", err);
     next(new Error("Unauthorized: Invalid token"));
   }
 });
 
 io.on("connection", async (socket) => {
-  console.log("New socket connection:", socket);
+  console.log("New socket connection:");
   const userId = socket.data.userId;
   const user = socket.data.user;
   if (!userId || !user) {
