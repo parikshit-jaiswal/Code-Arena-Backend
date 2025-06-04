@@ -9,6 +9,8 @@ import jwt from "jsonwebtoken";
 import { sendOtpEmail } from "../utils/sendMail.js";
 import mongoose from "mongoose";
 import { verifyGoogleToken, getGoogleUser } from "../utils/googleAuth.js";
+import Contest from "../models/contest.model.js";
+import cloudinary from "../config/cloudinary";
 
 const otpStore = new Map<
   string,
@@ -387,53 +389,169 @@ const getUserData = asyncHandler(async (req: Request, res: Response) => {
   const userId = (req as any).user._id;
 
   const user = await User.aggregate([
+    { $match: { _id: userId } },
+    // Preserve the original contestsParticipated array
+    { $addFields: { userContestsParticipated: "$contestsParticipated" } },
     {
-      $match: {
-        _id: userId,
+      $lookup: {
+        from: "contests",
+        localField: "contestsParticipated.contestId",
+        foreignField: "_id",
+        as: "contestsParticipated",
+      },
+    },
+    // Merge user's score and rank into each contestParticipated object
+    {
+      $addFields: {
+        contestsParticipated: {
+          $map: {
+            input: "$contestsParticipated",
+            as: "contest",
+            in: {
+              $mergeObjects: [
+                "$$contest",
+                {
+                  score: {
+                    $let: {
+                      vars: {
+                        userContest: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$userContestsParticipated",
+                                as: "uc",
+                                cond: {
+                                  $eq: ["$$uc.contestId", "$$contest._id"],
+                                },
+                              },
+                            },
+                            0,
+                          ],
+                        },
+                      },
+                      in: "$$userContest.score",
+                    },
+                  },
+                  rank: {
+                    $let: {
+                      vars: {
+                        userContest: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$userContestsParticipated",
+                                as: "uc",
+                                cond: {
+                                  $eq: ["$$uc.contestId", "$$contest._id"],
+                                },
+                              },
+                            },
+                            0,
+                          ],
+                        },
+                      },
+                      in: "$$userContest.rank",
+                    },
+                  },
+                  contestProblems: {
+                    $let: {
+                      vars: {
+                        userContest: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$userContestsParticipated",
+                                as: "uc",
+                                cond: {
+                                  $eq: ["$$uc.contestId", "$$contest._id"],
+                                },
+                              },
+                            },
+                            0,
+                          ],
+                        },
+                      },
+                      in: "$$userContest.contestProblems",
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+    // Unwind contestsParticipated and contestProblems for lookup
+    {
+      $unwind: {
+        path: "$contestsParticipated",
+        preserveNullAndEmptyArrays: true,
       },
     },
     {
+      $unwind: {
+        path: "$contestsParticipated.contestProblems",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    // Lookup problem details
+    {
       $lookup: {
-        from: "contests", 
-        localField: "contestsParticipated.contestId", 
+        from: "problems",
+        localField: "contestsParticipated.contestProblems.problemId",
         foreignField: "_id",
-        as: "contestsParticipated", 
-        pipeline: [
-          {
-            $lookup: {
-              from: "problems",
-              localField: "problems",
-              foreignField: "_id",
-              as: "problems",
-            },
-          },
-          {
-            $addFields: {
-              owner: {
-                $first: "$owner"
-              }
-            }
-          }
-        ],
+        as: "contestsParticipated.contestProblems.problemDetails",
+      },
+    },
+    // Flatten problemDetails array
+    {
+      $addFields: {
+        "contestsParticipated.contestProblems.problemDetails": {
+          $arrayElemAt: [
+            "$contestsParticipated.contestProblems.problemDetails",
+            0,
+          ],
+        },
+      },
+    },
+    // Group back contestProblems
+    {
+      $group: {
+        _id: {
+          userId: "$_id",
+          contestId: "$contestsParticipated._id",
+        },
+        doc: { $first: "$$ROOT" },
+        contest: { $first: "$contestsParticipated" },
+        contestProblems: { $push: "$contestsParticipated.contestProblems" },
       },
     },
     {
       $addFields: {
-        totalScore: {
-          $sum: "$contestsParticipated.score", // Sum up the scores from all contests
-        },
-        totalAttempts: {
-          $sum: "$contestsParticipated.attempts", // Sum up the attempts from all contests
-        },
-        bestSubmissionTime: {
-          $min: "$contestsParticipated.bestSubmissionTime", // Find the minimum submission time
-        },
+        "contest.contestProblems": "$contestProblems",
+      },
+    },
+    // Group back contestsParticipated
+    {
+      $group: {
+        _id: "$doc._id",
+        doc: { $first: "$doc" },
+        contestsParticipated: { $push: "$contest" },
       },
     },
     {
+      $addFields: {
+        "doc.contestsParticipated": "$contestsParticipated",
+      },
+    },
+    {
+      $replaceRoot: { newRoot: "$doc" },
+    },
+    {
       $project: {
-        password: 0, // Exclude sensitive fields
+        password: 0,
         refreshToken: 0,
+        userContestsParticipated: 0, // Hide the helper field
       },
     },
   ]);
@@ -448,49 +566,405 @@ const getUserData = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const googleLogin = asyncHandler(async (req: Request, res: Response) => {
-    const idToken = req.body.idToken;
-    if (!idToken) {
-        throw new ApiError(400, "ID token is required");
-    }
+  const idToken = req.body.idToken;
+  if (!idToken) {
+    throw new ApiError(400, "ID token is required");
+  }
 
-    const googleUser = await getGoogleUser(idToken);
+  const googleUser = await getGoogleUser(idToken);
 
-    if (!googleUser || !googleUser.email) {
-        throw new ApiError(401, "Invalid Google ID token");
-    }
+  if (!googleUser || !googleUser.email) {
+    throw new ApiError(401, "Invalid Google ID token");
+  }
 
-    const { email, name, picture } = googleUser;
+  const { email, name, picture } = googleUser;
 
-    let user = await User.findOne({ email });
+  let user = await User.findOne({ email });
 
-    if (!user) {
-        user = await User.create({
-            username: name,
-            email,
-            profile: { avatarUrl: picture },
-            password: "",
-        });
-    }
+  if (!user) {
+    user = await User.create({
+      username: name,
+      email,
+      profile: { avatarUrl: picture },
+      password: "",
+    });
+  }
 
-    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id!.toString());
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+    user._id!.toString()
+  );
 
-    const message = user.createdAt.getTime() === user.updatedAt.getTime()
-        ? "User registered successfully"
-        : "User logged in successfully";
+  const message =
+    user.createdAt.getTime() === user.updatedAt.getTime()
+      ? "User registered successfully"
+      : "User logged in successfully";
 
-
-    res.status(200).json(new ApiResponse(200, { user, accessToken, refreshToken }, message));
+  res
+    .status(200)
+    .json(new ApiResponse(200, { user, accessToken, refreshToken }, message));
 });
 
+const getManageableContests = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.user?._id as mongoose.Types.ObjectId;
 
-export { registerUser,
-         loginUser, 
-         verifyLoginOTP, 
-         logoutUser, 
-         refreshAccessToken, 
-         changePassword, 
-         forgetPassword, 
-         verifyResetPasswordOTP, 
-         updatePassword, 
-         getUserData, 
-         googleLogin };
+    if (!userId) {
+      throw new ApiError(401, "Authentication required");
+    }
+
+    // Find user
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    // Define fields to select - only include what's needed for the contests list
+    const contestFields =
+      "title description startTime endTime organizer moderators createdAt";
+
+    // Get contests where the user is an organizer
+    const organizedContests = await Contest.find({ organizer: userId })
+      .select(contestFields)
+      .sort({ createdAt: -1 });
+
+    // Get contests where the user is a moderator
+    const moderatedContests = await Contest.find({
+      moderators: { $in: [userId] },
+    })
+      .select(contestFields)
+      .sort({ createdAt: -1 });
+
+    // If user is admin, get all contests
+    let allContests: any[] = [];
+    if (user.role === "admin") {
+      allContests = await Contest.find()
+        .select(contestFields)
+        .sort({ createdAt: -1 });
+    }
+
+    // Prepare response with role context for each contest
+    const managedContests = {
+      asOrganizer: organizedContests,
+      asModerator: moderatedContests,
+      asAdmin: user.role === "admin" ? allContests : [],
+    };
+
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          managedContests,
+          "Manageable contests retrieved successfully"
+        )
+      );
+  }
+);
+
+const updateProfilePicture = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.user?._id;
+
+    if (!userId) {
+      throw new ApiError(401, "Authentication required");
+    }
+
+    if (!req.file) {
+      throw new ApiError(400, "No image file provided");
+    }
+
+    try {
+      // The file has already been uploaded to Cloudinary by the middleware
+      const imageUrl =
+        (req.file as any).path ||
+        (req.file as Express.Multer.File & { path: string }).path;
+
+      if (!imageUrl) {
+        throw new ApiError(500, "Failed to upload image");
+      }
+
+      // Find the user
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new ApiError(404, "User not found");
+      }
+
+      // If user already has a profile picture in Cloudinary, delete the old one
+      if (user.profilePicture && user.profilePicture.includes("cloudinary")) {
+        try {
+          // Extract the public ID from the Cloudinary URL
+          const publicId = user.profilePicture.split("/").pop()?.split(".")[0];
+
+          if (publicId) {
+            await cloudinary.uploader.destroy(
+              `code-up-profile-pictures/${publicId}`
+            );
+          }
+        } catch (err) {
+          console.error("Error deleting old profile picture:", err);
+          // Continue even if deletion fails
+        }
+      }
+
+      // Update the user's profile picture URL
+      user.profilePicture = imageUrl;
+      await user.save();
+
+      res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            { profilePicture: imageUrl },
+            "Profile picture updated successfully"
+          )
+        );
+    } catch (error) {
+      console.error("Error updating profile picture:", error);
+
+      // Clean up the uploaded file in case of error
+      if (req.file && (req.file as any).public_id) {
+        try {
+          await cloudinary.uploader.destroy((req.file as any).public_id);
+        } catch (err) {
+          console.error("Error deleting uploaded file after error:", err);
+        }
+      }
+
+      throw new ApiError(
+        500,
+        "Failed to update profile picture. Please try again."
+      );
+    }
+  }
+);
+
+const followAndUnfollow = asyncHandler(async (req: Request, res: Response) => {
+  //TODO:
+  //1. we will get the user profile from the request body
+  //2. identify the user in the database
+  //3. identify the user we are now about to follow
+  //4. update the followers list of the user we are about to follow
+  //5. update the following list of the user we are following from
+  //6. return the updated user profile
+
+  const userId = (req as any).user._id;
+  const userThatIsFollowing = await User.findById(userId);
+
+  const { idOfWhomWeAreFollowing } = req.body;
+  const userThatIsFollowed = await User.findById(idOfWhomWeAreFollowing);
+
+  if (!userThatIsFollowing || !userThatIsFollowed) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Check if the user is already following the target user
+  const isFollowing = userThatIsFollowing.following.includes(
+    idOfWhomWeAreFollowing
+  );
+  if (isFollowing) {
+    // If already following, unfollow the user
+    userThatIsFollowing.following = userThatIsFollowing.following.filter(
+      (id: any) => id.toString() !== idOfWhomWeAreFollowing.toString()
+    );
+    userThatIsFollowed.followers = userThatIsFollowed.followers.filter(
+      (id: any) => id.toString() !== userId.toString()
+    );
+  } else {
+    // If not following, follow the user
+    userThatIsFollowing.following.push(idOfWhomWeAreFollowing);
+    userThatIsFollowed.followers.push(userId);
+  }
+
+  await userThatIsFollowing.save();
+  await userThatIsFollowed.save();
+
+  res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { user: userThatIsFollowing },
+        isFollowing
+          ? "Unfollowed user successfully"
+          : "Followed user successfully"
+      )
+    );
+});
+
+const searchFriendByName = asyncHandler(async (req: Request, res: Response) => {
+  const { username } = req.body;
+  if (!username) {
+    throw new ApiError(400, "Username is required for search");
+  }
+
+  const listOfUsers = await User.find({
+    username: { $regex: username, $options: "i" },
+  }).select("_id username profile profilePicture");
+
+  res.status(200).json(new ApiResponse(200, listOfUsers, "Users found"));
+});
+
+const suggestedUsersToFollow = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = (req as any).user._id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      throw new ApiError(400, "Can't identify the user");
+    }
+
+    const followingIds = user.following.map((f: any) =>
+      f.userId ? f.userId.toString() : f.toString()
+    );
+    followingIds.push(userId.toString());
+
+    const suggestions = await User.find({
+      _id: { $nin: followingIds },
+    })
+      .select("username profile profilePicture followers")
+      .sort({ "followers.length": -1 })
+      .limit(10);
+
+    res
+      .status(200)
+      .json(new ApiResponse(200, suggestions, "Suggested users to follow"));
+  }
+);
+
+const getProfileOfUser = asyncHandler(async (req: Request, res: Response) => {
+  //TODO:
+  //1. get the userId of the profile to be searching from the params
+  //2. find the user in the database
+  //3. check if the user is the same as the logged in user
+  //4. if the user is the same as the logged in user, return the user profile
+  //5. if the user is not the same as the logged in user, return the user profile without the refresh token and password
+  const searchUserId = req.params.userId;
+  const loggedInUserId = (req as any).user._id;
+  const user = await User.findById(searchUserId).select(
+    "-password -refreshToken"
+  );
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  const currentUser = await User.findById(loggedInUserId);
+  if (!currentUser) {
+    throw new ApiError(404, "User not found(unauthorized)");
+  }
+  const isSameUser = loggedInUserId.toString() === searchUserId.toString();
+  if (isSameUser) {
+    res
+      .status(200)
+      .json(new ApiResponse(200, user, "User profile retrieved successfully"));
+    return;
+  }
+  const userWithoutSensitiveData = {
+    ...user.toObject(),
+    password: undefined,
+    refreshToken: undefined,
+  };
+  res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        userWithoutSensitiveData,
+        "User profile retrieved successfully"
+      )
+    );
+});
+
+const getUserById = asyncHandler(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  
+  if (!mongoose.isValidObjectId(userId)) {
+    throw new ApiError(400, "Invalid User ID format");
+  }
+  
+  const requesterId = req.user?._id as mongoose.Types.ObjectId;
+  const requester = await User.findById(requesterId);
+  
+  if (!requester) {
+    throw new ApiError(404, "Requester not found");
+  }
+  
+  // Find the requested user with basic info
+  const user = await User.findById(userId).select(
+    "-password -refreshToken"
+  );
+  
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  
+  // For admins and contest organizers, provide more detailed information
+  // For regular users, provide limited information
+  let userData;
+  
+  if (requester.role === "admin") {
+    // Admin users get full profile info except sensitive data
+    userData = {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      profilePicture: user.profilePicture,
+      profile: user.profile,
+      rating: user.rating,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      // Include participation data but filter out unnecessary details
+      contestsParticipated: user.contestsParticipated?.map(contest => ({
+        contestId: contest.contestId,
+        rank: contest.rank,
+        score: contest.score
+      }))
+    };
+  } else {
+    // Regular users see limited profile information
+    userData = {
+      _id: user._id,
+      username: user.username,
+      role: user.role,
+      profilePicture: user.profilePicture,
+      profile: {
+        name: user.profile?.name,
+        institution: user.profile?.institution,
+        country: user.profile?.country,
+        bio: user.profile?.bio
+      },
+      rating: user.rating,
+      createdAt: user.createdAt
+    };
+  }
+  
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      userData,
+      "User profile retrieved successfully"
+    )
+  );
+});
+
+export { 
+  registerUser,
+  loginUser, 
+  verifyLoginOTP, 
+  logoutUser, 
+  refreshAccessToken, 
+  changePassword, 
+  forgetPassword, 
+  verifyResetPasswordOTP, 
+  updatePassword, 
+  getUserData, 
+  googleLogin,
+  getManageableContests,
+  updateProfilePicture,
+  getUserById,
+  followAndUnfollow,
+  searchFriendByName,
+  suggestedUsersToFollow,
+  getProfileOfUser,
+};

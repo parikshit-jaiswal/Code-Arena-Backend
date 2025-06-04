@@ -22,6 +22,21 @@ const userSchema = new Schema<IUser>(
     password: {
       type: String,
     },
+    online: {
+      type: Boolean,
+      default: false,
+    },
+    followers: [
+      {
+        userId: { type: Schema.Types.ObjectId, ref: "User" },
+        followedAt: { type: Date, default: Date.now },
+      },
+    ],
+    following: [
+      {
+        userId: { type: Schema.Types.ObjectId, ref: "User" },
+      },
+    ],
     refreshToken: {
       type: String,
     },
@@ -29,6 +44,10 @@ const userSchema = new Schema<IUser>(
       type: String,
       enum: ["admin", "participant"],
       default: "participant",
+    },
+    profilePicture: {
+      type: String,
+      default: "",
     },
     profile: {
       name: { type: String },
@@ -44,6 +63,20 @@ const userSchema = new Schema<IUser>(
     contestsParticipated: [
       {
         contestId: { type: Schema.Types.ObjectId, ref: "Contest" },
+        rank: Number,
+        score: {type: Number, default: 0},
+        contestProblems: [
+          {
+            problemId: { type: Schema.Types.ObjectId, ref: "Problem" },
+            score: {type: Number, default: 0},
+            submissionTime: Date,
+            submissionStatus: {
+              type: String,
+              enum: ["correct", "wrong", "partially correct"],
+              default: "wrong",
+            },
+          },
+        ],
       },
     ],
     solvedProblems: [
@@ -53,6 +86,11 @@ const userSchema = new Schema<IUser>(
       },
     ],
     contestsCreated: [
+      {
+        contestId: { type: Schema.Types.ObjectId, ref: "Contest" },
+      },
+    ],
+    contestsModerated: [
       {
         contestId: { type: Schema.Types.ObjectId, ref: "Contest" },
       },

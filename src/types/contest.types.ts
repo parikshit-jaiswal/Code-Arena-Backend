@@ -21,12 +21,19 @@ export interface IContest extends mongoose.Document {
     participants: IParticipant[];
     submissions: ISubmission[];
     score?: number;
+    rank?: number;
     attempts?: number;
     bestSubmissionTime?: number; // in seconds or milliseconds
     totalScore?: number;
     isRated: boolean;
     tags?: string[];
     rules?: string;
+    landingPageTitle?: string;
+    landingPageDescription?: string;
+    prizes?: string;
+    scoring?: string;
+    landingPageImage?: string;
+    backgroundImage?: string; // New field added
     createdAt: Date;
     updatedAt: Date;
 }

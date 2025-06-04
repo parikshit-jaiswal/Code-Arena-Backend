@@ -14,7 +14,7 @@ const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> =
     }: {
         code: string;
         language: string;
-        testCases: { input: string; output: string }[];
+        testCases: { input: string; output: string }[]; // Changed to output to match what works in Postman
     } = req.body;
 
     if (!code || !language || !testCases || !Array.isArray(testCases)) {
@@ -33,7 +33,7 @@ const runCode = asyncHandler(async (req: Request, res: Response): Promise<any> =
     try {
         const response = await axios.post(
             CODE_EXEC_API_URL,
-            { code, language, testCases },
+            { code, language, testCases }, // No transformation needed
             { headers: { "Content-Type": "application/json" } }
         );
 

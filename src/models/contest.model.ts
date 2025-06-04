@@ -64,6 +64,10 @@ const contestSchema = new Schema<IContest>(
       type: Number,
       default: 0,
     },
+    rank: {
+      type: Number,
+      default: 0,
+    },
     attempts: {
       type: Number,
       default: 0,
@@ -88,6 +92,30 @@ const contestSchema = new Schema<IContest>(
     rules: {
       type: String,
       trim: true,
+    },
+    landingPageTitle: {
+      type: String,
+      trim: true,
+    },
+    landingPageDescription: {
+      type: String,
+      trim: true,
+    },
+    prizes: {
+      type: String,
+      trim: true,
+    },
+    scoring: {
+      type: String,
+      trim: true,
+    },
+    landingPageImage: {
+      type: String,
+      trim: true,
+    },
+    backgroundImage: {
+      type: String,
+      default: "",
     },
   },
   {

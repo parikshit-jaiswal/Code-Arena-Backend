@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import connectDB from './db/index.js';
 import { app } from './app.js';
+import "./controllers/socket.controllers.js"; // <-- Add this at the top
 
 dotenv.config({
     path: './.env',
