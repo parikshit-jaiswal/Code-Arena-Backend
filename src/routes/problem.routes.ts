@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { getProblem, submitSolution } from "../controllers/problem.controllers.js";
 import { getContestProblems } from "../controllers/contest.controllers.js";
 import { submitSolution, getProblem } from "../controllers/problem.controllers.js";
 
