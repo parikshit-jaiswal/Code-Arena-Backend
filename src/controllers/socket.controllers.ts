@@ -4,7 +4,7 @@ import User from "../models/user.model.js";
 import Room from "../models/room.model.js";
 import Problem from "../models/problem.model.js";
 import mongoose from "mongoose";
-import { evaluateSolution } from "../utils/evaluateSolution";
+import { evaluateSolution } from "../utils/evaluateSolution.js";
 
 const SUPPORTED_LANGUAGES = ["cpp", "python", "javascript", "c", "java"];
 

@@ -19,7 +19,7 @@ import {
   getAllContests,
   joinContest,
 } from "../controllers/contest.controllers.js";
-import { uploadProfilePicture } from "../middlewares/upload.middleware";
+import { uploadProfilePicture } from "../middlewares/upload.middleware.js";
 
 const router = Router();
 

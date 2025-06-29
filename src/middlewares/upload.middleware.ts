@@ -1,9 +1,9 @@
 import multer from 'multer';
 import path from 'path';
 import { Request } from 'express';
-import { ApiError } from '../utils/ApiError';
+import { ApiError } from '../utils/ApiError.js';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
-import cloudinary from '../config/cloudinary';
+import cloudinary from '../config/cloudinary.js';
 
 // Define file size limits
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -40,12 +40,12 @@ const contestBackgroundStorage = new CloudinaryStorage({
 
 // File filter to check file types
 const fileFilter = (
-  req: Request, 
-  file: Express.Multer.File, 
+  req: Request,
+  file: Express.Multer.File,
   callback: multer.FileFilterCallback
 ) => {
   const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-  
+
   if (allowedMimes.includes(file.mimetype)) {
     callback(null, true);
   } else {
@@ -73,7 +73,7 @@ export const uploadContestBackground = multer({
 
 // For other types of uploads (for future use)
 export const createUploader = (
-  folderName: string, 
+  folderName: string,
   allowedFormats: string[] = ['jpg', 'jpeg', 'png', 'gif', 'webp'],
   transformations = [{ width: 1000, height: 1000, crop: 'limit' }]
 ) => {
