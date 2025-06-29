@@ -23,6 +23,15 @@ export interface IContestCreation {
     contestId: mongoose.Types.ObjectId;
 }
 
+export interface IUserGlobalRank {
+    rank: number;
+    updatedAt: Date;
+}
+export interface IUserRating {
+    rating: number;
+    updatedAt: Date;
+}
+
 export interface IFollowers {
     userId: mongoose.Types.ObjectId;
     followedAt: Date;
@@ -65,7 +74,8 @@ export interface IUser extends mongoose.Document, IUserMethods {
     profile?: IProfile;
     followers: IFollowers[];
     following: IFollowers[];
-    rating: number;
+    ratingArray: Array<IUserRating>;
+    globalRank: IUserGlobalRank[];
     contestsParticipated: Array<{
         contestId: mongoose.Types.ObjectId;
         rank?: number;

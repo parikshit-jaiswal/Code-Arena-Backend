@@ -911,7 +911,7 @@ const getUserById = asyncHandler(async (req: Request, res: Response) => {
       role: user.role,
       profilePicture: user.profilePicture,
       profile: user.profile,
-      rating: user.rating,
+      ratingArray: user.ratingArray,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       // Include participation data but filter out unnecessary details
@@ -934,7 +934,7 @@ const getUserById = asyncHandler(async (req: Request, res: Response) => {
         country: user.profile?.country,
         bio: user.profile?.bio
       },
-      rating: user.rating,
+      ratingArray: user.ratingArray,
       createdAt: user.createdAt
     };
   }
@@ -947,6 +947,13 @@ const getUserById = asyncHandler(async (req: Request, res: Response) => {
     )
   );
 });
+
+//TODO:
+//1. setup the profile dashboard we need
+//2. contest participated in
+//3. problem solved
+//4. global rank
+//5. performance graph
 
 export { 
   registerUser,

@@ -56,10 +56,16 @@ const userSchema = new Schema<IUser>(
       avatarUrl: { type: String },
       bio: { type: String },
     },
-    rating: {
-      type: Number,
-      default: 1000,
-    },
+    ratingArray: [{
+      rating: { type: Number, default: 1000 },
+      updatedAt: { type: Date, default: Date.now }
+    }],
+    globalRank: [
+      {
+        rank: { type: Number, default: 0 },
+        updatedAt: { type: Date, default: Date.now },
+      }
+    ],
     contestsParticipated: [
       {
         contestId: { type: Schema.Types.ObjectId, ref: "Contest" },

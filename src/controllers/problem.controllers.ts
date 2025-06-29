@@ -22,6 +22,8 @@ const submitSolution = asyncHandler(
     //6. return the response
     //7. update the user rating based on the contest score
     //8. update the user rank based on the contest score
+    //9. append the new rating by adding or subtracting the score based on the contest score
+    //10. update the user global rank based on the new rating
     const { contestId, problemId } = req.params;
 
     const contest = await Contest.findById(contestId);
@@ -139,6 +141,21 @@ const submitSolution = asyncHandler(
       (acc: number, p: any) => acc + (p.score || 0),
       0
     );
+    console.log("user rating:", user.ratingArray);
+    // Update user rating based on contest score
+    const previousRating = user.ratingArray[user.ratingArray.length - 1]?.rating || 1000; // Default rating if not set
+    console.log("score:", score);
+    const newRating = previousRating + contestEntry.score; // Simple addition for demo purposes
+    //now append the new rating in the user rating array
+    console.log("new rating:", newRating);
+    user.ratingArray.push({
+      rating: newRating,
+      updatedAt: new Date(),
+    });
+    user.globalRank.push({
+      rank: 0, // Placeholder for rank, you can calculate this later
+      updatedAt: new Date(),
+    });
 
     console.log("User: ", user);
 
