@@ -180,4 +180,16 @@ const getProblem = asyncHandler(
   }
 );
 
-export { submitSolution, getProblem };
+const getProblemById = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const { problemId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(problemId)) {
+    throw new ApiError(400, "Invalid problem ID");
+  }
+  const problem = await Problem.findById(problemId);
+  if (!problem) {
+    throw new ApiError(404, "Problem not found");
+  }
+  res.status(200).json(new ApiResponse(200, problem, "Problem fetched successfully"));
+});
+
+export { submitSolution, getProblem, getProblemById };
