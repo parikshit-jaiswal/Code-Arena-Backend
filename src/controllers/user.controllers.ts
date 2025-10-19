@@ -10,7 +10,7 @@ import { sendOtpEmail } from "../utils/sendMail.js";
 import mongoose from "mongoose";
 import { verifyGoogleToken, getGoogleUser } from "../utils/googleAuth.js";
 import Contest from "../models/contest.model.js";
-import cloudinary from "../config/cloudinary";
+import cloudinary from "../config/cloudinary.js";
 
 const otpStore = new Map<
   string,
@@ -990,31 +990,31 @@ const getProfileOfUser = asyncHandler(async (req: Request, res: Response) => {
 
 const getUserById = asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
-  
+
   if (!mongoose.isValidObjectId(userId)) {
     throw new ApiError(400, "Invalid User ID format");
   }
-  
+
   const requesterId = req.user?._id as mongoose.Types.ObjectId;
   const requester = await User.findById(requesterId);
-  
+
   if (!requester) {
     throw new ApiError(404, "Requester not found");
   }
-  
+
   // Find the requested user with basic info
   const user = await User.findById(userId).select(
     "-password -refreshToken"
   );
-  
+
   if (!user) {
     throw new ApiError(404, "User not found");
   }
-  
+
   // For admins and contest organizers, provide more detailed information
   // For regular users, provide limited information
   let userData;
-  
+
   if (requester.role === "admin") {
     // Admin users get full profile info except sensitive data
     userData = {
@@ -1051,7 +1051,7 @@ const getUserById = asyncHandler(async (req: Request, res: Response) => {
       createdAt: user.createdAt
     };
   }
-  
+
   res.status(200).json(
     new ApiResponse(
       200,
@@ -1061,17 +1061,17 @@ const getUserById = asyncHandler(async (req: Request, res: Response) => {
   );
 });
 
-export { 
+export {
   registerUser,
-  loginUser, 
-  verifyLoginOTP, 
-  logoutUser, 
-  refreshAccessToken, 
-  changePassword, 
-  forgetPassword, 
-  verifyResetPasswordOTP, 
-  updatePassword, 
-  getUserData, 
+  loginUser,
+  verifyLoginOTP,
+  logoutUser,
+  refreshAccessToken,
+  changePassword,
+  forgetPassword,
+  verifyResetPasswordOTP,
+  updatePassword,
+  getUserData,
   googleLogin,
   getManageableContests,
   updateProfilePicture,

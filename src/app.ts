@@ -14,7 +14,7 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CORS_ORIGIN,
+    origin: "http://localhost:3000",
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -28,7 +28,7 @@ io.on("connection", (socket) => {
   // ...
 });
 
-httpServer.listen(3030);
+httpServer.listen(8000);
 
 app.use(
   cors({

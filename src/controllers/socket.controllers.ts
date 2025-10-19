@@ -4,25 +4,39 @@ import User from "../models/user.model.js";
 import Room from "../models/room.model.js";
 import Problem from "../models/problem.model.js";
 import mongoose from "mongoose";
-import { evaluateSolution } from "../utils/evaluateSolution";
+import { evaluateSolution } from "../utils/evaluateSolution.js";
 
 const SUPPORTED_LANGUAGES = ["cpp", "python", "javascript", "c", "java"];
 
 io.use(async (socket, next) => {
   try {
-    
-    const token =
-      socket.handshake.headers.cookie
-        ?.split("; ")
-        .find((c) => c.startsWith("accessToken="))
-        ?.split("=")[1] ||
-      socket.handshake.auth?.token ||
-      socket.handshake.headers["authorization"]?.replace("Bearer ", "");
+    console.log("Socket middleware triggered for:", socket.id);
+    // Extract accessToken from cookies in the handshake headers
+    let token: string | undefined;
+    const cookieHeader = socket.handshake.headers.cookie;
+    if (cookieHeader) {
+      const cookies = Object.fromEntries(
+        cookieHeader.split(";").map((cookie) => {
+          const [key, ...v] = cookie.trim().split("=");
+          return [key, v.join("=")];
+        })
+      );
+      token = cookies.accessToken;
+    }
+
+    // Fallback to Authorization header if needed
+    if (!token) {
+      const authHeader = socket.handshake.headers["authorization"];
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.replace("Bearer ", "");
+      }
+    }
 
     if (!token) {
       return next(new Error("Unauthorized: No token provided"));
     }
 
+    // Verify token (same as verifyJWT)
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET!);
     const user = await User.findById((decoded as any)._id).select(
       "-password -refreshToken"
@@ -32,17 +46,17 @@ io.use(async (socket, next) => {
       return next(new Error("Unauthorized: Invalid token"));
     }
 
-    socket.data.userId = (
-      user as { _id: mongoose.Types.ObjectId }
-    )._id.toString();
+    socket.data.userId = (user as { _id: mongoose.Types.ObjectId })._id.toString();
     socket.data.user = user;
     next();
   } catch (err) {
+    console.error("Socket middleware error:", err);
     next(new Error("Unauthorized: Invalid token"));
   }
 });
 
 io.on("connection", async (socket) => {
+  console.log("New socket connection:");
   const userId = socket.data.userId;
   const user = socket.data.user;
   if (!userId || !user) {
@@ -59,19 +73,27 @@ io.on("connection", async (socket) => {
       const room = await Room.create({
         roomId,
         problemId: problem[0]._id,
-        users: [{
-          userId,
-          username: user.username,
-          score: 0,
-          submissionStatus: "pending",
-          rating: user.rating || 1200,
-          isCreator: true, // Mark creator
-        }],
+        users: [
+          {
+            userId,
+            username: user.username,
+            score: 0,
+            submissionStatus: "pending",
+            rating: user.rating || 1200,
+            isCreator: true, // Mark creator
+          },
+        ],
         isActive: true,
         roomStatus: "waiting",
       });
+      console.log("roomID ===", roomId);
       socket.join(roomId);
-      callback({ success: true, roomId, problemId: problem[0]._id, users: room.users });
+      callback({
+        success: true,
+        roomId,
+        problemId: problem[0]._id,
+        users: room.users,
+      });
     } catch (err) {
       callback({ success: false, message: "Failed to create room" });
     }
@@ -92,11 +114,11 @@ io.on("connection", async (socket) => {
           roomStatus: "waiting",
           $expr: { $lt: [{ $size: "$users" }, 10] },
           "users.0": { $exists: true },
-          "users": {
+          users: {
             $elemMatch: {
-              rating: { $gte: userRating - 200, $lte: userRating + 200 }
-            }
-          }
+              rating: { $gte: userRating - 200, $lte: userRating + 200 },
+            },
+          },
         });
         if (!room) {
           return callback({ success: false, message: "No suitable rooms found" });
@@ -138,8 +160,11 @@ io.on("connection", async (socket) => {
       const room = await Room.findOne({ roomId, isActive: true });
       if (!room) return callback({ success: false, message: "Room not found" });
 
-      const creator = room.users.find((u: any) => u.isCreator && u.userId.toString() === userId);
-      if (!creator) return callback({ success: false, message: "Only the creator can start the match" });
+      const creator = room.users.find(
+        (u: any) => u.isCreator && u.userId.toString() === userId
+      );
+      if (!creator)
+        return callback({ success: false, message: "Only the creator can start the match" });
 
       if (room.roomStatus !== "waiting") {
         return callback({ success: false, message: "Match already started or finished" });
@@ -166,8 +191,7 @@ io.on("connection", async (socket) => {
       if (!room) return callback({ success: false, message: "Room not found" });
 
       const user = room.users.find((u: any) => u.userId.toString() === userId);
-      if (!user)
-        return callback({ success: false, message: "User not in room" });
+      if (!user) return callback({ success: false, message: "User not in room" });
 
       // Validate language
       if (!SUPPORTED_LANGUAGES.includes(language)) {
