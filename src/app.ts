@@ -2,7 +2,7 @@ import express, { urlencoded } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import testRouter from "./routes/test.routes.js";
-import authRouter from "./routes/user.routes.js";
+import authRouter from "./routes/user.routes.js"; // This is actually the user routes file
 import codeRouter from "./routes/code.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 import contestRouter from "./routes/contest.routes.js";
@@ -10,7 +10,6 @@ import problemRouter from "./routes/problem.routes.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 
-import userRouter from "./routes/user.routes.js";
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -43,14 +42,12 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
 
-
 app.use('/api/v1', testRouter);
-app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/auth', authRouter); // Remove the duplicate userRouter line
 app.use('/api/v1/code', codeRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/contest', contestRouter);
 app.use('/api/v1/problem', problemRouter);
-app.use("/api/v1/user", userRouter);
-
+// Remove this line: app.use("/api/v1/user", userRouter);
 
 export { app, io, httpServer };

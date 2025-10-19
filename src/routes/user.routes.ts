@@ -12,7 +12,11 @@ import {
   googleLogin,
   getManageableContests,
   updateProfilePicture,
-  getUserById, // Add this import
+  getUserById,
+  followAndUnfollow, // Add this import
+  searchFriendByName, // Add this import
+  suggestedUsersToFollow, // Add this import
+  getProfileOfUser, // Add this import
 } from "../controllers/user.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import {
@@ -48,5 +52,11 @@ router
 // Add new route to get user by ID
 router.route("/current").get(verifyJWT, getUserData); // New route for current user
 router.route("/:userId").get(verifyJWT, getUserById); // Route for getting user by ID
+
+// Add the missing social feature routes
+router.route("/follow").post(verifyJWT, followAndUnfollow);
+router.route("/search-friends").post(verifyJWT, searchFriendByName);
+router.route("/suggested-users").get(verifyJWT, suggestedUsersToFollow);
+router.route("/profile/:userId").get(verifyJWT, getProfileOfUser);
 
 export default router;
