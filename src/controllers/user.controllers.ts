@@ -582,8 +582,31 @@ const googleLogin = asyncHandler(async (req: Request, res: Response) => {
   let user = await User.findOne({ email });
 
   if (!user) {
+    // Alternative username generation strategy
+    const generateUniqueUsername = async (baseName: string): Promise<string> => {
+      // Remove spaces and special characters, convert to lowercase
+      let baseUsername = baseName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      
+      // Ensure minimum length
+      if (baseUsername.length < 3) {
+        baseUsername = baseUsername + 'user';
+      }
+      
+      let username = baseUsername;
+      let counter = 1;
+      
+      while (await User.findOne({ username })) {
+        username = `${baseUsername}${counter}`;
+        counter++;
+      }
+      
+      return username;
+    };
+
+    const username = await generateUniqueUsername(name || email.split('@')[0]);
+
     user = await User.create({
-      username: name,
+      username,
       email,
       profile: { avatarUrl: picture },
       password: "",
