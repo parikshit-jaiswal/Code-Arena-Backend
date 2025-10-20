@@ -7,6 +7,7 @@ import codeRouter from "./routes/code.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 import contestRouter from "./routes/contest.routes.js";
 import problemRouter from "./routes/problem.routes.js";
+import socialRoutes from "./routes/social.routes.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 
@@ -48,6 +49,6 @@ app.use('/api/v1/code', codeRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/contest', contestRouter);
 app.use('/api/v1/problem', problemRouter);
-// Remove this line: app.use("/api/v1/user", userRouter);
+app.use("/api/v1/social", socialRoutes);
 
 export { app, io, httpServer };
