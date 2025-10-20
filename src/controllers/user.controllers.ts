@@ -4,6 +4,13 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { IUser } from "../types/user.types.js";
 import User from "../models/user.model.js";
+
+// Extend Express Request to include user property
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: IUser;
+  }
+}
 import { generateAccessAndRefreshTokens } from "../utils/tools.js";
 import jwt from "jsonwebtoken";
 import { sendOtpEmail } from "../utils/sendMail.js";
@@ -27,6 +34,7 @@ const otpStore = new Map<
   }
 >();
 
+// Update the registerUser function
 const registerUser = asyncHandler(async (req: Request, res: Response) => {
   const { username, email, password } = req.body;
 
@@ -76,6 +84,7 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     );
 });
 
+// Update verifyLoginOTP to set hasPassword
 const verifyLoginOTP = asyncHandler(async (req: Request, res: Response) => {
   const { email, otp } = req.body;
 
@@ -104,7 +113,13 @@ const verifyLoginOTP = asyncHandler(async (req: Request, res: Response) => {
   const { username, password } = stored.user;
 
   try {
-    const newUser = await User.create({ username, email, password });
+    const newUser = await User.create({
+      username,
+      email,
+      password,
+      isGoogleAccount: false,
+      hasPassword: true,
+    });
     otpStore.delete(email);
 
     const user = await User.findById(newUser._id).select(
@@ -565,6 +580,7 @@ const getUserData = asyncHandler(async (req: Request, res: Response) => {
     .json(new ApiResponse(200, user[0], "User data retrieved successfully"));
 });
 
+// Update googleLogin to set the Google flags
 const googleLogin = asyncHandler(async (req: Request, res: Response) => {
   const idToken = req.body.idToken;
   if (!idToken) {
@@ -582,12 +598,9 @@ const googleLogin = asyncHandler(async (req: Request, res: Response) => {
   let user = await User.findOne({ email });
 
   if (!user) {
-    // Alternative username generation strategy
     const generateUniqueUsername = async (baseName: string): Promise<string> => {
-      // Remove spaces and special characters, convert to lowercase
       let baseUsername = baseName.toLowerCase().replace(/[^a-z0-9]/g, '');
       
-      // Ensure minimum length
       if (baseUsername.length < 3) {
         baseUsername = baseUsername + 'user';
       }
@@ -609,7 +622,9 @@ const googleLogin = asyncHandler(async (req: Request, res: Response) => {
       username,
       email,
       profile: { avatarUrl: picture },
-      password: "",
+      password: "", // Empty password initially
+      isGoogleAccount: true,
+      hasPassword: false,
     });
   }
 
@@ -649,6 +664,45 @@ const googleLogin = asyncHandler(async (req: Request, res: Response) => {
       "An error occurred during Google login. Please try again."
     );
   }
+});
+
+// Add new function to create password for Google users
+const createPasswordForGoogleUser = asyncHandler(async (req: Request, res: Response) => {
+  const { newPassword } = req.body;
+  const userId = req.user?._id;
+
+  if (!userId) {
+    throw new ApiError(401, "User not authenticated");
+  }
+
+  if (!newPassword) {
+    throw new ApiError(400, "New password is required");
+  }
+
+  if (newPassword.length < 6) {
+    throw new ApiError(400, "Password must be at least 6 characters long");
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  if (!user.isGoogleAccount) {
+    throw new ApiError(400, "This feature is only available for Google accounts");
+  }
+
+  if (user.hasPassword) {
+    throw new ApiError(400, "Password already exists. Use change password instead.");
+  }
+
+  user.password = newPassword;
+  user.hasPassword = true;
+  await user.save();
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password created successfully"));
 });
 
 const getManageableContests = asyncHandler(
@@ -1127,4 +1181,5 @@ export {
   searchFriendByName,
   suggestedUsersToFollow,
   getProfileOfUser,
+  createPasswordForGoogleUser, // Add this new export
 };
