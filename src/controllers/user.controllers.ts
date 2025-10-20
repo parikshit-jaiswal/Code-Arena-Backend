@@ -613,18 +613,42 @@ const googleLogin = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
-    user._id!.toString()
-  );
+  try {
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+      user._id!.toString()
+    );
 
-  const message =
-    user.createdAt.getTime() === user.updatedAt.getTime()
-      ? "User registered successfully"
-      : "User logged in successfully";
+    const loggedInUser = await User.findById(user._id).select(
+      "-password -refreshToken -contestsCreated"
+    );
 
-  res
-    .status(200)
-    .json(new ApiResponse(200, { user, accessToken, refreshToken }, message));
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    };
+
+    const message =
+      user.createdAt.getTime() === user.updatedAt.getTime()
+        ? "User registered successfully"
+        : "User logged in successfully";
+
+    res
+      .cookie("accessToken", accessToken, cookieOptions)
+      .cookie("refreshToken", refreshToken, cookieOptions)
+      .json(
+        new ApiResponse(
+          200,
+          { user: loggedInUser, accessToken, refreshToken },
+          message
+        )
+      );
+  } catch (error) {
+    console.error("Error during Google login:", error);
+    throw new ApiError(
+      500,
+      "An error occurred during Google login. Please try again."
+    );
+  }
 });
 
 const getManageableContests = asyncHandler(
