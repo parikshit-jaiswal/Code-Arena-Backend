@@ -323,8 +323,154 @@ const followUnfollowUser = asyncHandler(async (req: Request, res: Response) => {
   }
 });
 
+const getFollowers = asyncHandler(async (req: Request, res: Response) => {
+  console.log('=== Social: Get Followers ===');
+  
+  const userId = req.user?._id;
+  
+  if (!userId) {
+    throw new ApiError(401, "User not authenticated");
+  }
+
+  const userIdString = userId.toString();
+
+  try {
+    const user = await User.findById(userIdString)
+      .populate('followers.userId', '_id username firstName lastName profilePicture profile')
+      .select('followers');
+    
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    // Extract follower information
+    const followers = user.followers.map((f: any) => {
+      const followerUser = f.userId;
+      return {
+        _id: followerUser._id,
+        username: followerUser.username,
+        firstName: followerUser.firstName || followerUser.profile?.name,
+        lastName: followerUser.lastName,
+        profilePicture: followerUser.profilePicture || followerUser.profile?.avatarUrl,
+        profile: followerUser.profile,
+      };
+    });
+
+    res.status(200).json(
+      new ApiResponse(200, followers, "Followers retrieved successfully")
+    );
+        
+  } catch (error) {
+    console.error('Error in getFollowers:', error);
+    throw new ApiError(500, "Failed to fetch followers");
+  }
+});
+
+const getFollowing = asyncHandler(async (req: Request, res: Response) => {
+  console.log('=== Social: Get Following ===');
+  
+  const userId = req.user?._id;
+  
+  if (!userId) {
+    throw new ApiError(401, "User not authenticated");
+  }
+
+  const userIdString = userId.toString();
+
+  try {
+    const user = await User.findById(userIdString).select('following');
+    
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    console.log('Raw following data:', JSON.stringify(user.following, null, 2));
+
+    // Handle the following data similar to getSuggestedUsers
+    let followingUserIds: string[] = [];
+    if (user.following && Array.isArray(user.following)) {
+      followingUserIds = user.following
+        .map((f: any) => {
+          try {
+            // Handle different possible formats
+            if (f && typeof f === 'object') {
+              // If it has userId property
+              if (f.userId) {
+                if (mongoose.Types.ObjectId.isValid(f.userId)) {
+                  return f.userId.toString();
+                }
+              }
+              // If it has _id property
+              if (f._id) {
+                if (mongoose.Types.ObjectId.isValid(f._id)) {
+                  return f._id.toString();
+                }
+              }
+            }
+            // If it's a direct ObjectId or string
+            if (f && mongoose.Types.ObjectId.isValid(f.toString())) {
+              return f.toString();
+            }
+            // Try to extract ObjectId from stringified objects
+            if (typeof f === 'string' && f.includes('ObjectId')) {
+              const match = f.match(/ObjectId\('([a-f0-9]{24})'\)/);
+              if (match && match[1]) {
+                return match[1];
+              }
+            }
+            return null;
+          } catch (error) {
+            console.log('Error processing following item:', f, error);
+            return null;
+          }
+        })
+        .filter(Boolean); // Remove null values
+    }
+
+    console.log('Extracted following IDs:', followingUserIds);
+
+    // If no following users, return empty array
+    if (followingUserIds.length === 0) {
+      res.status(200).json(
+        new ApiResponse(200, [], "Following retrieved successfully")
+      );
+      return;
+    }
+
+    // Fetch user details for following users
+    const followingUsers = await User.find({
+      _id: { $in: followingUserIds.map(id => new mongoose.Types.ObjectId(id)) }
+    }).select('_id username firstName lastName profilePicture profile');
+
+    console.log('Found following users:', followingUsers.length);
+
+    // Format the response
+    const following = followingUsers.map((followingUser: any) => ({
+      _id: followingUser._id,
+      username: followingUser.username,
+      firstName: followingUser.firstName || followingUser.profile?.name,
+      lastName: followingUser.lastName,
+      profilePicture: followingUser.profilePicture || followingUser.profile?.avatarUrl,
+      profile: followingUser.profile,
+      isFollowing: true, // They are in the following list
+    }));
+
+    console.log('Returning following users:', following.length);
+
+    res.status(200).json(
+      new ApiResponse(200, following, "Following retrieved successfully")
+    );
+        
+  } catch (error) {
+    console.error('Error in getFollowing:', error);
+    throw new ApiError(500, "Failed to fetch following");
+  }
+});
+
 export {
   getSuggestedUsers,
   searchUsers,
   followUnfollowUser,
+  getFollowers,
+  getFollowing,
 };
