@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/src/index.js",
+    "start": "node dist/index.js",
     "render-start": "NODE_OPTIONS='--max-old-space-size=4096' npm run build && npm run start"
   },
   "dependencies": {
