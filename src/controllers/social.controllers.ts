@@ -40,7 +40,7 @@ const getSuggestedUsers = asyncHandler(async (req: Request, res: Response) => {
                   return f.userId.toString();
                 }
               }
-              // If it has _id property
+  
               if (f._id) {
                 if (mongoose.Types.ObjectId.isValid(f._id)) {
                   return f._id.toString();
